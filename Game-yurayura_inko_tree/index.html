@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ゆらゆら文鳥の木 Yurayura Inko Tree</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Mali:wght@500;700&family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --sky-top:#BEE8F5;
+    --sky-bottom:#FDEFD9;
+    --foliage:#7CB68B;
+    --foliage-dark:#5B9670;
+    --trunk:#8B5A3C;
+    --trunk-dark:#5C3A24;
+    --coral:#FF8B69;
+    --coral-dark:#F06B46;
+    --ink:#3B2A21;
+    --cream:#FFF8EC;
+    --warn:#E85D4E;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{
+    margin:0; padding:0; height:100%; overflow:hidden;
+    font-family:'Sarabun',sans-serif;
+    background:#2b2f36;
+    display:flex; align-items:center; justify-content:center;
+    touch-action:none;
+    user-select:none;
+  }
+  #stage{
+    position:relative;
+    width:100%;
+    max-width:460px;
+    height:100%;
+    max-height:860px;
+    aspect-ratio: 9/16;
+    background:linear-gradient(to bottom, var(--sky-top) 0%, var(--sky-bottom) 78%, var(--sky-bottom) 100%);
+    overflow:hidden;
+    box-shadow:0 0 40px rgba(0,0,0,0.5);
+    border-radius:18px;
+  }
+  canvas{
+    position:absolute; top:0; left:0;
+    width:100%; height:100%;
+    display:block;
+    touch-action:none;
+  }
+  .screen{
+    position:absolute; inset:0;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    text-align:center; padding:32px 24px;
+    z-index:5;
+  }
+  .hidden{ display:none !important; }
+  h1.title{
+    font-family:'Mali',cursive;
+    font-weight:700;
+    font-size:2.5rem;
+    color:var(--ink);
+    line-height:1.25;
+    margin:0 0 6px 0;
+    text-shadow:0 2px 0 rgba(255,255,255,0.6);
+  }
+  .subtitle{
+    font-family:'Mali',cursive;
+    font-weight:500;
+    font-size:1.05rem;
+    color:var(--foliage-dark);
+    margin:0 0 28px 0;
+  }
+  .bird-emoji-hero{
+    font-size:4.2rem;
+    margin-bottom:8px;
+    filter:drop-shadow(0 6px 4px rgba(0,0,0,0.15));
+    animation: floaty 2.4s ease-in-out infinite;
+  }
+  @keyframes floaty{
+    0%,100%{ transform:translateY(0) rotate(-4deg); }
+    50%{ transform:translateY(-10px) rotate(4deg); }
+  }
+  .howto{
+    background:var(--cream);
+    border-radius:16px;
+    padding:16px 20px;
+    max-width:320px;
+    font-size:0.88rem;
+    line-height:1.6;
+    color:var(--ink);
+    margin-bottom:26px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.08);
+  }
+  .howto b{ color:var(--coral-dark); }
+  button.primary{
+    font-family:'Mali',cursive;
+    font-weight:700;
+    font-size:1.3rem;
+    color:#fff;
+    background:var(--coral);
+    border:none;
+    border-radius:999px;
+    padding:14px 46px;
+    box-shadow:0 5px 0 var(--coral-dark);
+    cursor:pointer;
+    transition:transform .08s ease;
+  }
+  button.primary:active{
+    transform:translateY(4px);
+    box-shadow:0 1px 0 var(--coral-dark);
+  }
+  #hud{
+    position:absolute; top:0; left:0; right:0;
+    display:flex; justify-content:space-between; align-items:flex-start;
+    padding:14px 16px;
+    z-index:4;
+    pointer-events:none;
+  }
+  .hud-card{
+    background:rgba(255,248,236,0.92);
+    border-radius:12px;
+    padding:8px 14px;
+    box-shadow:0 3px 0 rgba(0,0,0,0.08);
+    font-family:'Sarabun',sans-serif;
+  }
+  .hud-label{
+    font-size:0.62rem;
+    color:var(--foliage-dark);
+    font-weight:600;
+    letter-spacing:0.03em;
+  }
+  .hud-value{
+    font-family:'Mali',cursive;
+    font-weight:700;
+    font-size:1.25rem;
+    color:var(--ink);
+    line-height:1.1;
+  }
+  #lifeRow{
+    display:flex; gap:4px; margin-top:4px;
+  }
+  .life-heart{
+    width:12px; height:12px;
+    border-radius:50%;
+    background:var(--warn);
+    opacity:0.25;
+  }
+  .life-heart.alive{ opacity:1; }
+  #resultScreen .result-card{
+    background:var(--cream);
+    border-radius:20px;
+    padding:26px 28px;
+    box-shadow:0 6px 0 rgba(0,0,0,0.1);
+    width:100%;
+    max-width:300px;
+  }
+  .result-reason{
+    font-family:'Mali',cursive;
+    font-weight:700;
+    font-size:1.35rem;
+    color:var(--warn);
+    margin-bottom:14px;
+  }
+  .result-row{
+    display:flex; justify-content:space-between;
+    font-size:0.95rem;
+    padding:7px 0;
+    border-bottom:1px dashed rgba(59,42,33,0.18);
+    color:var(--ink);
+  }
+  .result-row b{ font-family:'Mali',cursive; font-size:1.15rem; }
+  .best-tag{
+    display:inline-block;
+    margin-top:10px;
+    font-size:0.75rem;
+    color:#fff;
+    background:var(--foliage-dark);
+    padding:3px 10px;
+    border-radius:999px;
+  }
+  #countdownOverlay{
+    position:absolute; inset:0;
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Mali',cursive;
+    font-weight:700;
+    font-size:5rem;
+    color:#fff;
+    text-shadow:0 4px 10px rgba(0,0,0,0.3);
+    z-index:6;
+    pointer-events:none;
+  }
+</style>
+</head>
+<body>
+
+<div id="stage">
+  <canvas id="gameCanvas"></canvas>
+
+  <!-- HUD -->
+  <div id="hud" class="hidden">
+    <div class="hud-card">
+      <div class="hud-label">นกที่รับได้</div>
+      <div class="hud-value" id="scoreVal">0</div>
+    </div>
+    <div class="hud-card" style="text-align:right;">
+      <div class="hud-label">น้ำหนักรวม</div>
+      <div class="hud-value" id="weightVal">0.0</div>
+      <div id="lifeRow"></div>
+    </div>
+  </div>
+
+  <div id="countdownOverlay" class="hidden"></div>
+
+  <!-- Title Screen -->
+  <div id="titleScreen" class="screen">
+    <div class="bird-emoji-hero">🦜</div>
+    <h1 class="title">ゆらゆら<br>インコの木</h1>
+    <div class="subtitle">Yurayura Inko Tree</div>
+    <div class="howto">
+      ลากซ้าย-ขวาเพื่อ<b>เลื่อนต้นไม้</b>ไปรับนกที่ร่วงลงมา<br>
+      คุมให้<b>น้ำหนักซ้าย-ขวาสมดุล</b> อย่าให้ต้นไม้เอียงจนล้ม<br>
+      รับพลาดบ่อยเกินไป กิ่งไม้จะ<b>ร้าวจนหัก!</b> 🌿
+    </div>
+    <button class="primary" id="startBtn">เริ่มเล่น</button>
+  </div>
+
+  <!-- Result Screen -->
+  <div id="resultScreen" class="screen hidden">
+    <div class="result-card">
+      <div class="result-reason" id="resultReason">ต้นไม้ล้มแล้ว!</div>
+      <div class="result-row"><span>นกที่รับได้</span><b id="resBirds">0</b></div>
+      <div class="result-row"><span>น้ำหนักรวม</span><b id="resWeight">0.0</b></div>
+      <div id="bestBadge"></div>
+    </div>
+    <button class="primary" style="margin-top:22px;" id="retryBtn">เล่นอีกครั้ง</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  const stage = document.getElementById('stage');
+  const hud = document.getElementById('hud');
+  const scoreVal = document.getElementById('scoreVal');
+  const weightVal = document.getElementById('weightVal');
+  const lifeRow = document.getElementById('lifeRow');
+  const titleScreen = document.getElementById('titleScreen');
+  const resultScreen = document.getElementById('resultScreen');
+  const startBtn = document.getElementById('startBtn');
+  const retryBtn = document.getElementById('retryBtn');
+  const resultReason = document.getElementById('resultReason');
+  const resBirds = document.getElementById('resBirds');
+  const resWeight = document.getElementById('resWeight');
+  const bestBadge = document.getElementById('bestBadge');
+  const countdownOverlay = document.getElementById('countdownOverlay');
+
+  // ---------- Logical canvas size ----------
+  const LW = 400, LH = 711; // logical width/height (9:16-ish)
+  let dpr = Math.max(1, window.devicePixelRatio || 1);
+
+  function resizeCanvas(){
+    const rect = stage.getBoundingClientRect();
+    dpr = Math.max(1, window.devicePixelRatio || 1);
+    canvas.width = Math.round(rect.width * dpr);
+    canvas.height = Math.round(rect.height * dpr);
+    scaleX = rect.width / LW;
+    scaleY = rect.height / LH;
+  }
+  let scaleX = 1, scaleY = 1;
+  window.addEventListener('resize', resizeCanvas);
+
+  // ---------- Bird types ----------
+  const BIRD_TYPES = [
+    { key:'sparrow',   thName:'นกกระจอก',        size:'small',  emoji:'🐦', w:26, weight:1.0, hue:0   },
+    { key:'budgie',    thName:'นกหงส์หยก',        size:'small',  emoji:'🐤', w:28, weight:1.1, hue:70  },
+    { key:'parrotlet', thName:'ฟอร์พัส',          size:'small',  emoji:'🐥', w:24, weight:0.9, hue:190 },
+    { key:'lovebird',  thName:'เลิฟเบิร์ด',        size:'small',  emoji:'🐦', w:30, weight:1.4, hue:130 },
+    { key:'cockatiel', thName:'ค็อกคาเทล',        size:'medium', emoji:'🦜', w:46, weight:2.6, hue:0   },
+    { key:'grey',      thName:'แอฟริกันเกรย์',     size:'medium', emoji:'🦜', w:50, weight:3.2, hue:200 },
+    { key:'macaw',     thName:'มาคอว์',           size:'large',  emoji:'🦚', w:82, weight:7.5, hue:0   },
+    { key:'umbrella',  thName:'กระตั้วอัมเบรลล่า', size:'large',  emoji:'🦢', w:94, weight:9.0, hue:0   },
+  ];
+
+  function pickBirdType(){
+    // weighted so small birds are more common than large ones
+    const r = Math.random();
+    if (r < 0.5) return BIRD_TYPES.filter(b=>b.size==='small')[Math.floor(Math.random()*4)];
+    if (r < 0.85) return BIRD_TYPES.filter(b=>b.size==='medium')[Math.floor(Math.random()*2)];
+    return BIRD_TYPES.filter(b=>b.size==='large')[Math.floor(Math.random()*2)];
+  }
+
+  // ---------- Game constants ----------
+  const GROUND_Y = LH - 92;
+  const TRUNK_HEIGHT = 150;
+  const BRANCH_Y_OFFSET = 150;      // distance above trunk base where the branch sits
+  const SIDE_CAPACITY = 118;        // px of bird-width capacity per side
+  const CATCH_HALF_RANGE = 132;     // horizontal reach of the branch from tree center
+  const MAX_TILT_DEG = 45;
+  const MISS_LIMIT = 4;
+  const TREE_MIN_X = 60, TREE_MAX_X = LW - 60;
+  const TILT_PER_WEIGHT = 5.6;      // degrees of tilt per unit weight imbalance
+  const TILT_LERP = 0.12;
+
+  // ---------- Game state ----------
+  let state = 'title'; // title | countdown | playing | gameover
+  let treeX = LW/2;
+  let treeTargetX = LW/2;
+  let dragging = false;
+  let dragOffsetX = 0;
+
+  let birds = [];          // falling birds
+  let attached = { left: [], right: [] }; // {type, offset, y}
+  let sideUsedWidth = { left:0, right:0 };
+  let sideWeight = { left:0, right:0 };
+  let currentTiltDeg = 0;
+  let displayTiltDeg = 0;
+
+  let score = 0;
+  let totalWeight = 0;
+  let missCount = 0;
+  let crackStage = 0; // 0 none, 1 light, 2 heavy
+  let spawnTimer = 0;
+  let spawnInterval = 1250;
+  let elapsed = 0;
+  let lastTs = null;
+  let branchFlashSide = null, branchFlashT = 0; // brief highlight when catch fails due to space
+  let treeBreakAnim = 0;
+  let gameOverReason = '';
+
+  let bestScore = 0;
+  let bestLoaded = false;
+
+  // ---------- Persistent best score ----------
+  async function loadBest(){
+    try{
+      const res = await window.storage.get('yurayura_best_score', false);
+      if (res && res.value){
+        const v = JSON.parse(res.value);
+        bestScore = v.score || 0;
+      }
+    }catch(e){ /* no record yet */ }
+    bestLoaded = true;
+  }
+  async function saveBestIfNeeded(finalScore){
+    if (finalScore > bestScore){
+      bestScore = finalScore;
+      try{
+        await window.storage.set('yurayura_best_score', JSON.stringify({score:bestScore}), false);
+      }catch(e){ /* storage failed, ignore silently */ }
+      return true;
+    }
+    return false;
+  }
+  loadBest();
+
+  // ---------- Input ----------
+  function getLogicalX(clientX){
+    const rect = stage.getBoundingClientRect();
+    return (clientX - rect.left) / scaleX;
+  }
+  function pointerDown(clientX){
+    if (state !== 'playing') return;
+    dragging = true;
+    const lx = getLogicalX(clientX);
+    dragOffsetX = lx - treeX;
+  }
+  function pointerMove(clientX){
+    if (!dragging || state !== 'playing') return;
+    const lx = getLogicalX(clientX);
+    treeTargetX = Math.max(TREE_MIN_X, Math.min(TREE_MAX_X, lx - dragOffsetX));
+  }
+  function pointerUp(){ dragging = false; }
+
+  canvas.addEventListener('mousedown', e=>pointerDown(e.clientX));
+  window.addEventListener('mousemove', e=>pointerMove(e.clientX));
+  window.addEventListener('mouseup', pointerUp);
+  canvas.addEventListener('touchstart', e=>{ pointerDown(e.touches[0].clientX); }, {passive:true});
+  canvas.addEventListener('touchmove', e=>{ pointerMove(e.touches[0].clientX); e.preventDefault(); }, {passive:false});
+  canvas.addEventListener('touchend', pointerUp);
+
+  // ---------- Screen management ----------
+  function showScreen(name){
+    titleScreen.classList.toggle('hidden', name!=='title');
+    resultScreen.classList.toggle('hidden', name!=='result');
+    hud.classList.toggle('hidden', name!=='playing' && name!=='countdown');
+  }
+
+  function resetGame(){
+    treeX = LW/2; treeTargetX = LW/2;
+    birds = [];
+    attached = { left: [], right: [] };
+    sideUsedWidth = { left:0, right:0 };
+    sideWeight = { left:0, right:0 };
+    currentTiltDeg = 0; displayTiltDeg = 0;
+    score = 0; totalWeight = 0; missCount = 0; crackStage = 0;
+    spawnTimer = 0; spawnInterval = 1250; elapsed = 0;
+    treeBreakAnim = 0;
+    updateHUD();
+    renderLifeRow();
+  }
+
+  function updateHUD(){
+    scoreVal.textContent = score;
+    weightVal.textContent = totalWeight.toFixed(1);
+  }
+  function renderLifeRow(){
+    lifeRow.innerHTML = '';
+    for(let i=0;i<MISS_LIMIT;i++){
+      const d = document.createElement('div');
+      d.className = 'life-heart' + (i < (MISS_LIMIT-missCount) ? ' alive' : '');
+      lifeRow.appendChild(d);
+    }
+  }
+
+  let countdownVal = 3;
+  function startCountdown(){
+    resetGame();
+    state = 'countdown';
+    showScreen('countdown');
+    countdownOverlay.classList.remove('hidden');
+    countdownVal = 3;
+    countdownOverlay.textContent = countdownVal;
+    const iv = setInterval(()=>{
+      countdownVal--;
+      if (countdownVal <= 0){
+        clearInterval(iv);
+        countdownOverlay.classList.add('hidden');
+        state = 'playing';
+      } else {
+        countdownOverlay.textContent = countdownVal;
+      }
+    }, 550);
+  }
+
+  function endGame(reason){
+    state = 'gameover';
+    gameOverReason = reason;
+    resultReason.textContent = reason;
+    resBirds.textContent = score;
+    resWeight.textContent = totalWeight.toFixed(1);
+    saveBestIfNeeded(score).then(isNew=>{
+      bestBadge.innerHTML = isNew
+        ? '<span class="best-tag">สถิติใหม่! 🏆</span>'
+        : (bestScore>0 ? '<span class="best-tag">สถิติสูงสุด: '+bestScore+' ตัว</span>' : '');
+    });
+    setTimeout(()=>{ showScreen('result'); }, 700);
+  }
+
+  startBtn.addEventListener('click', ()=>{
+    showScreen('countdown');
+    startCountdown();
+  });
+  retryBtn.addEventListener('click', ()=>{
+    showScreen('countdown');
+    startCountdown();
+  });
+
+  // ---------- Spawning ----------
+  function spawnBird(){
+    const type = pickBirdType();
+    const margin = type.w/2 + 10;
+    const x = margin + Math.random() * (LW - margin*2);
+    birds.push({
+      type,
+      x, y: -30,
+      vy: 90 + Math.random()*30,
+      wobblePhase: Math.random()*Math.PI*2,
+      settled:false,
+      settleT:0,
+    });
+  }
+
+  // ---------- Catch logic ----------
+  function tryCatch(bird){
+    const dx = bird.x - treeX;
+    const inRange = Math.abs(dx) <= CATCH_HALF_RANGE;
+    if (!inRange) return 'miss-range';
+    const side = dx < 0 ? 'left' : 'right';
+    const used = sideUsedWidth[side];
+    const available = SIDE_CAPACITY - used;
+    if (bird.type.w <= available){
+      const offset = used + bird.type.w/2; // distance from trunk center, along this side
+      attached[side].push({ type: bird.type, offset, bob: Math.random()*Math.PI*2 });
+      sideUsedWidth[side] += bird.type.w;
+      sideWeight[side] += bird.type.weight;
+      score += 1;
+      totalWeight += bird.type.weight;
+      updateHUD();
+      return 'caught';
+    }
+    branchFlashSide = side; branchFlashT = 0.35;
+    return 'miss-space';
+  }
+
+  function registerMiss(){
+    missCount = Math.min(MISS_LIMIT, missCount+1);
+    crackStage = missCount >= MISS_LIMIT ? 3 : (missCount >= 3 ? 2 : (missCount >= 1 ? 1 : 0));
+    renderLifeRow();
+    if (missCount >= MISS_LIMIT){
+      treeBreakAnim = 0.001;
+      endGame('เปรี้ยง! กิ่งไม้หักเสียแล้ว 🥀');
+    }
+  }
+
+  // ---------- Update ----------
+  function update(dt){
+    elapsed += dt;
+    // smooth tree movement
+    treeX += (treeTargetX - treeX) * 0.28;
+
+    // difficulty ramp
+    spawnInterval = Math.max(520, 1250 - elapsed*14);
+
+    if (state === 'playing'){
+      spawnTimer += dt*1000;
+      if (spawnTimer > spawnInterval){
+        spawnTimer = 0;
+        spawnBird();
+      }
+    }
+
+    const branchWorldY = GROUND_Y - BRANCH_Y_OFFSET; // approximate, tilt handled visually only
+
+    for (let i = birds.length-1; i>=0; i--){
+      const b = birds[i];
+      b.y += b.vy * dt;
+      b.wobblePhase += dt*4;
+      if (b.y >= branchWorldY){
+        const result = tryCatch(b);
+        birds.splice(i,1);
+        if (result !== 'caught'){
+          registerMiss();
+        }
+      } else if (b.y > LH + 40){
+        birds.splice(i,1); // shouldn't really happen
+      }
+    }
+
+    // compute target tilt from weight imbalance
+    const diff = sideWeight.right - sideWeight.left;
+    currentTiltDeg = Math.max(-70, Math.min(70, diff * TILT_PER_WEIGHT));
+    displayTiltDeg += (currentTiltDeg - displayTiltDeg) * TILT_LERP;
+
+    if (branchFlashT > 0) branchFlashT -= dt;
+
+    if (state === 'playing' && Math.abs(displayTiltDeg) >= MAX_TILT_DEG){
+      state = 'gameover';
+      treeBreakAnim = 0;
+      endGame(displayTiltDeg > 0 ? 'ต้นไม้ล้มไปทางขวา! 🌳💥' : 'ต้นไม้ล้มไปทางซ้าย! 🌳💥');
+    }
+  }
+
+  // ---------- Drawing ----------
+  function drawBackground(){
+    // sky handled by CSS gradient behind canvas; draw clouds + hills
+    ctx.save();
+    ctx.globalAlpha = 0.85;
+    ctx.fillStyle = '#ffffff';
+    drawCloud(70, 90, 1.0);
+    drawCloud(280, 60, 0.75);
+    drawCloud(330, 150, 0.55);
+    ctx.restore();
+
+    // distant hill
+    ctx.fillStyle = 'rgba(124,182,139,0.35)';
+    ctx.beginPath();
+    ctx.ellipse(LW*0.25, GROUND_Y+30, 220, 60, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(LW*0.85, GROUND_Y+40, 260, 70, 0, 0, Math.PI*2);
+    ctx.fill();
+
+    // ground
+    const g = ctx.createLinearGradient(0, GROUND_Y, 0, LH);
+    g.addColorStop(0, '#CDE7B0');
+    g.addColorStop(1, '#AFD996');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, GROUND_Y, LW, LH-GROUND_Y);
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    ctx.fillRect(0, GROUND_Y, LW, 4);
+  }
+
+  function drawCloud(cx, cy, s){
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, 26*s, 16*s, 0, 0, Math.PI*2);
+    ctx.ellipse(cx+22*s, cy+6*s, 20*s, 13*s, 0, 0, Math.PI*2);
+    ctx.ellipse(cx-22*s, cy+8*s, 18*s, 12*s, 0, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  function drawEmoji(emoji, x, y, size, hue){
+    ctx.save();
+    ctx.translate(x,y);
+    if (hue) ctx.filter = `hue-rotate(${hue}deg) saturate(1.15)`;
+    ctx.font = `${size}px serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(emoji, 0, 0);
+    ctx.restore();
+  }
+
+  function drawTree(){
+    const tiltRad = displayTiltDeg * Math.PI / 180;
+    ctx.save();
+    // ground shadow that stretches with tilt
+    ctx.save();
+    ctx.translate(treeX, GROUND_Y+8);
+    ctx.scale(1 + Math.abs(displayTiltDeg)/90, 0.4);
+    ctx.beginPath();
+    ctx.fillStyle = 'rgba(40,30,20,0.18)';
+    ctx.ellipse(displayTiltDeg*0.6, 0, 70, 22, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.translate(treeX, GROUND_Y);
+    ctx.rotate(tiltRad);
+
+    const breakOffset = treeBreakAnim > 0 ? Math.sin(treeBreakAnim*40)*treeBreakAnim*14 : 0;
+
+    // trunk
+    const trunkW = 26;
+    ctx.fillStyle = crackStage>=3 ? '#4a2f1d' : '#8B5A3C';
+    ctx.beginPath();
+    ctx.moveTo(-trunkW/2, 0);
+    ctx.quadraticCurveTo(-trunkW/2-4, -TRUNK_HEIGHT*0.5, -trunkW/2+3+breakOffset, -TRUNK_HEIGHT);
+    ctx.lineTo(trunkW/2-3+breakOffset, -TRUNK_HEIGHT);
+    ctx.quadraticCurveTo(trunkW/2+4, -TRUNK_HEIGHT*0.5, trunkW/2, 0);
+    ctx.closePath();
+    ctx.fill();
+
+    // trunk texture lines
+    ctx.strokeStyle = 'rgba(0,0,0,0.12)';
+    ctx.lineWidth = 2;
+    for(let i=-1;i<=1;i++){
+      ctx.beginPath();
+      ctx.moveTo(i*6, -8);
+      ctx.lineTo(i*6+breakOffset*0.5, -TRUNK_HEIGHT+10);
+      ctx.stroke();
+    }
+
+    // cracks
+    if (crackStage>=1){
+      ctx.strokeStyle = '#2b1a10';
+      ctx.lineWidth = crackStage>=2 ? 2.4 : 1.6;
+      ctx.beginPath();
+      ctx.moveTo(-4, -60);
+      ctx.lineTo(3, -75);
+      ctx.lineTo(-2, -92);
+      if (crackStage>=2){
+        ctx.lineTo(5, -108);
+        ctx.lineTo(-3,-122);
+      }
+      ctx.stroke();
+    }
+
+    // branch (foliage blob + branch line)
+    const branchY = -BRANCH_Y_OFFSET;
+    ctx.strokeStyle = '#6b4226';
+    ctx.lineWidth = 9;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-CATCH_HALF_RANGE-4+breakOffset, branchY);
+    ctx.lineTo(CATCH_HALF_RANGE+4+breakOffset, branchY);
+    ctx.stroke();
+
+    // branch highlight flash on failed catch
+    if (branchFlashT > 0){
+      const dirMul = branchFlashSide === 'left' ? -1 : 1;
+      ctx.strokeStyle = `rgba(232,93,78,${Math.min(0.7,branchFlashT*2)})`;
+      ctx.lineWidth = 12;
+      ctx.beginPath();
+      ctx.moveTo(0, branchY);
+      ctx.lineTo(dirMul*CATCH_HALF_RANGE, branchY);
+      ctx.stroke();
+    }
+
+    // foliage clusters
+    ctx.fillStyle = '#7CB68B';
+    [[-60,-14],[60,-14],[0,-26],[-30,6],[30,6]].forEach(([ox,oy])=>{
+      ctx.beginPath();
+      ctx.ellipse(ox, branchY+oy, 46, 34, 0, 0, Math.PI*2);
+      ctx.fill();
+    });
+    ctx.fillStyle = '#69A379';
+    [[-60,-14],[60,-14]].forEach(([ox,oy])=>{
+      ctx.beginPath();
+      ctx.ellipse(ox, branchY+oy+18, 40, 20, 0, 0, Math.PI*2);
+      ctx.fill();
+    });
+
+    // attached birds
+    ['left','right'].forEach(side=>{
+      const dirMul = side === 'left' ? -1 : 1;
+      attached[side].forEach(ab=>{
+        ab.bob += 0.02;
+        const bx = dirMul * ab.offset;
+        const by = branchY - 14 + Math.sin(ab.bob)*1.5;
+        const sizeMap = { small: 30, medium: 42, large: 66 };
+        drawEmoji(ab.type.emoji, bx, by, sizeMap[ab.type.size], ab.type.hue);
+      });
+    });
+
+    ctx.restore();
+  }
+
+  function drawFallingBirds(){
+    birds.forEach(b=>{
+      const sizeMap = { small: 30, medium: 42, large: 66 };
+      const wobble = Math.sin(b.wobblePhase)*4;
+      drawEmoji(b.type.emoji, b.x+wobble, b.y, sizeMap[b.type.size], b.type.hue);
+    });
+  }
+
+  function drawBalanceBar(){
+    // subtle balance indicator near top center
+    const barY = 34, barW = 140, cx = LW/2;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(59,42,33,0.25)';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(cx-barW/2, barY);
+    ctx.lineTo(cx+barW/2, barY);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx, barY-8); ctx.lineTo(cx, barY+8);
+    ctx.strokeStyle = 'rgba(59,42,33,0.4)';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    const t = Math.max(-1, Math.min(1, displayTiltDeg / MAX_TILT_DEG));
+    const knobX = cx + t*(barW/2-10);
+    ctx.fillStyle = Math.abs(t) > 0.75 ? '#E85D4E' : '#FF8B69';
+    ctx.beginPath();
+    ctx.arc(knobX, barY, 8, 0, Math.PI*2);
+    ctx.fill();
+    ctx.font = '16px serif';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('🦜', knobX, barY-2);
+    ctx.restore();
+  }
+
+  function render(){
+    ctx.save();
+    ctx.setTransform(dpr*scaleX, 0, 0, dpr*scaleY, 0, 0);
+    ctx.clearRect(0,0,LW,LH);
+    drawBackground();
+    drawTree();
+    drawFallingBirds();
+    if (state === 'playing') drawBalanceBar();
+    ctx.restore();
+  }
+
+  // ---------- Main loop ----------
+  function loop(ts){
+    if (lastTs === null) lastTs = ts;
+    let dt = (ts - lastTs)/1000;
+    dt = Math.min(dt, 0.05);
+    lastTs = ts;
+
+    if (treeBreakAnim > 0) treeBreakAnim += dt;
+
+    if (state === 'playing'){
+      update(dt);
+    } else if (state === 'countdown'){
+      treeX += (treeTargetX - treeX) * 0.2;
+    }
+    render();
+    requestAnimationFrame(loop);
+  }
+
+  resizeCanvas();
+  showScreen('title');
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
