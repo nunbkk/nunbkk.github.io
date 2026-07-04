@@ -331,22 +331,22 @@
   let bestScore = 0;
   let bestLoaded = false;
 
-  // ---------- Persistent best score ----------
-  async function loadBest(){
+  // ---------- Persistent best score using localStorage ----------
+  function loadBest(){
     try{
-      const res = await window.storage.get('yurayura_best_score', false);
-      if (res && res.value){
-        const v = JSON.parse(res.value);
+      const stored = localStorage.getItem('yurayura_best_score');
+      if (stored){
+        const v = JSON.parse(stored);
         bestScore = v.score || 0;
       }
     }catch(e){ /* no record yet */ }
     bestLoaded = true;
   }
-  async function saveBestIfNeeded(finalScore){
+  function saveBestIfNeeded(finalScore){
     if (finalScore > bestScore){
       bestScore = finalScore;
       try{
-        await window.storage.set('yurayura_best_score', JSON.stringify({score:bestScore}), false);
+        localStorage.setItem('yurayura_best_score', JSON.stringify({score:bestScore}));
       }catch(e){ /* storage failed, ignore silently */ }
       return true;
     }
@@ -439,11 +439,10 @@
     resultReason.textContent = reason;
     resBirds.textContent = score;
     resWeight.textContent = totalWeight.toFixed(1);
-    saveBestIfNeeded(score).then(isNew=>{
-      bestBadge.innerHTML = isNew
-        ? '<span class="best-tag">สถิติใหม่! 🏆</span>'
-        : (bestScore>0 ? '<span class="best-tag">สถิติสูงสุด: '+bestScore+' ตัว</span>' : '');
-    });
+    const isNew = saveBestIfNeeded(score);
+    bestBadge.innerHTML = isNew
+      ? '<span class="best-tag">สถิติใหม่! 🏆</span>'
+      : (bestScore>0 ? '<span class="best-tag">สถิติสูงสุด: '+bestScore+' ตัว</span>' : '');
     setTimeout(()=>{ showScreen('result'); }, 700);
   }
 
