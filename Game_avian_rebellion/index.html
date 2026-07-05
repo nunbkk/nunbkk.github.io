@@ -1,0 +1,1818 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Project Avian Rebellion — MVP</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Prompt:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,700&display=swap" rel="stylesheet">
+<style>
+  *{font-family:'Prompt', sans-serif;}
+  :root{
+    --sky1:#eaf3de; --sky2:#c9e6a8; --ground:#8fbf52; --ground-dark:#6fa23a;
+    --pink:#f4c0d1; --pink-dark:#d4537e; --ink:#20301a; --panel:#ffffff;
+    --tank:#3a6ea5; --melee:#c0392b; --ranged:#1f9d8f; --support:#8e44ad;
+    --gold:#f0b429; --danger:#e63946; --cloud:#ffffff;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;margin:0;}
+  body{
+    color:var(--ink);
+    background:linear-gradient(180deg,var(--sky1),var(--sky2));
+    display:flex;align-items:center;justify-content:center;overflow:hidden;
+  }
+  #app{width:97vw;max-width:1300px;height:94vh;max-height:760px;position:relative;
+    background:var(--panel);border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.18);
+    overflow:hidden;display:flex;flex-direction:column;}
+
+  /* ---- rotate prompt (landscape-only policy) ---- */
+  #rotatePrompt{display:none;position:fixed;inset:0;background:#20301aee;color:#fff;
+    z-index:999;align-items:center;justify-content:center;flex-direction:column;text-align:center;font-size:18px;gap:10px;}
+  @media (orientation:portrait) and (max-width:820px){
+    #rotatePrompt{display:flex;}
+    #app{display:none;}
+  }
+  #rotatePrompt .icon{font-size:40px;animation:spin 1.6s linear infinite;}
+  @keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+
+  /* ---- header ---- */
+  header{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;
+    background:var(--ground-dark);color:#fff;flex:0 0 auto;}
+  header h1{font-size:14px;margin:0;font-weight:600;}
+  header .sub{font-size:10px;opacity:.8;}
+  #backBtn{background:#ffffff33;border:none;color:#fff;border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer;}
+  #backBtn:hover{background:#ffffff55;}
+
+  /* ---- screens ---- */
+  .screen{flex:1;display:none;overflow:hidden;position:relative;}
+  .screen.active{display:flex;}
+
+  /* Stage select */
+  #stageSelect{flex-direction:column;padding:14px 18px;gap:10px;overflow-y:auto;
+    background:
+      radial-gradient(circle at 12% 8%, #fff8 0%, transparent 40%),
+      radial-gradient(circle at 88% 90%, #fff6 0%, transparent 45%),
+      linear-gradient(180deg,#eef7e0,#dcefc4);}
+  #stageSelect .worldTitle{font-size:13px;color:#557;}
+  #stageSelect .worldTitle b{color:var(--ink);font-size:16px;}
+  #stageGrid{display:flex;gap:10px;flex-wrap:wrap;position:relative;}
+  .stageNode{width:78px;height:92px;border-radius:12px;border:none;cursor:pointer;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+    background:#fff;box-shadow:0 3px 8px rgba(0,0,0,.12);transition:transform .15s,box-shadow .15s;
+    position:relative;}
+  .stageNode:hover{transform:translateY(-3px);box-shadow:0 6px 14px rgba(0,0,0,.18);}
+  .stageNode.locked{background:#dfe3da;cursor:not-allowed;box-shadow:none;}
+  .stageNode.locked:hover{transform:none;}
+  .stageNode .num{font-size:20px;font-weight:700;}
+  .stageNode .tag{font-size:9px;padding:1px 6px;border-radius:999px;color:#fff;}
+  .stageNode.mini{box-shadow:0 3px 8px rgba(192,57,43,.35);}
+  .stageNode.mini .tag{background:var(--melee);}
+  .stageNode.world{box-shadow:0 0 0 2px var(--gold),0 3px 10px rgba(240,180,41,.45);animation:goldPulse 2.2s ease-in-out infinite;}
+  .stageNode.world .tag{background:var(--gold);}
+  @keyframes goldPulse{0%,100%{box-shadow:0 0 0 2px var(--gold),0 3px 10px rgba(240,180,41,.45);}50%{box-shadow:0 0 0 2px var(--gold),0 3px 18px rgba(240,180,41,.8);}}
+  .stageNode .stars{font-size:11px;color:var(--gold);}
+  .heroStrip{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap;}
+  .heroChip{display:flex;align-items:center;gap:6px;background:#f3f7ec;border-radius:999px;padding:4px 10px;font-size:11px;}
+  .heroDot{width:16px;height:16px;border-radius:50%;flex:0 0 auto;}
+
+  /* Battle screen */
+  #battle{flex-direction:column;}
+  #topbar{display:flex;justify-content:space-between;align-items:center;padding:6px 10px;font-size:11px;background:#fff;border-bottom:1px solid #e5e5e0;}
+  #waveLabel{font-weight:600;}
+  #stageTimer{font-size:15px;font-weight:700;color:var(--ink);letter-spacing:.5px;
+    background:#f3f7ec;padding:2px 12px;border-radius:999px;}
+  #stageTimer.low{color:#fff;background:var(--danger);animation:timerPulse 1s ease-in-out infinite;}
+  @keyframes timerPulse{0%,100%{transform:scale(1);}50%{transform:scale(1.08);}}
+  #bossBarWrap{position:absolute;top:34px;left:20%;right:20%;z-index:5;display:none;text-align:center;}
+  #bossBarWrap .bname{font-size:11px;font-weight:700;color:#7a1a1a;text-shadow:0 1px 0 #fff;}
+  #bossBarWrap .track{height:14px;background:#fff;border:2px solid #7a1a1a;border-radius:8px;overflow:hidden;}
+  #bossBarWrap .fill{height:100%;background:linear-gradient(90deg,#e74c3c,#c0392b);transition:width .25s;}
+
+  #arena{flex:1;position:relative;background:
+    linear-gradient(180deg,#cdeab0 0%, #b6dd93 55%, var(--ground) 56%, var(--ground-dark) 100%);
+    overflow:hidden;}
+
+  /* ---- parallax scenery (static layers, zero per-frame cost) ---- */
+  .bgLayer{position:absolute;pointer-events:none;z-index:0;}
+  .bgSun{top:6%;left:8%;width:60px;height:60px;border-radius:50%;
+    background:radial-gradient(circle, #fff6c9 0%, #ffe98a55 55%, transparent 75%);}
+  .bgCloud{top:10%;width:64px;height:22px;background:var(--cloud);border-radius:50px;opacity:.85;
+    filter:blur(.3px);animation:drift 46s linear infinite;box-shadow:14px 4px 0 -2px #fff, -14px -2px 0 -4px #fff;}
+  .bgCloud.c2{top:22%;width:44px;height:16px;animation-duration:62s;animation-delay:-18s;opacity:.7;}
+  .bgCloud.c3{top:6%;width:36px;height:14px;animation-duration:38s;animation-delay:-30s;opacity:.6;}
+  @keyframes drift{from{transform:translateX(-15%);}to{transform:translateX(115%);}}
+  .bgHills{left:0;right:0;bottom:35%;height:46px;opacity:.55;
+    background:
+      radial-gradient(ellipse 90px 46px at 15% 100%, #a9d183 0%, transparent 70%),
+      radial-gradient(ellipse 110px 46px at 45% 100%, #9fcb7a 0%, transparent 70%),
+      radial-gradient(ellipse 90px 46px at 78% 100%, #a9d183 0%, transparent 70%);}
+
+  #vignetteWarn{position:absolute;inset:0;pointer-events:none;z-index:8;opacity:0;
+    background:radial-gradient(ellipse at center, transparent 60%, rgba(230,57,70,.32) 100%);
+    transition:opacity .6s;}
+  #vignetteWarn.show{opacity:1;animation:vignettePulse 2.6s ease-in-out infinite;}
+  @keyframes vignettePulse{0%,100%{opacity:.55;}50%{opacity:.85;}}
+
+  #arena.bossFlash{animation:bossFlashAnim .5s ease-out;}
+  @keyframes bossFlashAnim{0%{filter:brightness(1);}15%{filter:brightness(1.9) saturate(1.3);}100%{filter:brightness(1);}}
+
+  /* ---- center-screen announcement banner (skills, stage intro, boss) ---- */
+  #announce{position:absolute;left:50%;top:17%;transform:translate(-50%,-50%);z-index:15;
+    pointer-events:none;text-align:center;display:none;}
+  #announce.show{display:block;animation:annPop var(--annDur,1.4s) cubic-bezier(.2,1.4,.4,1) forwards;}
+  #announce .annMain{font-size:34px;font-weight:900;letter-spacing:1px;color:#fff;
+    -webkit-text-stroke:2px var(--annStroke,#8e44ad);
+    text-shadow:0 0 18px var(--annGlow,#b18aff), 0 4px 0 rgba(0,0,0,.25);}
+  #announce .annSub{font-size:15px;font-weight:700;color:#fff;margin-top:2px;
+    text-shadow:0 2px 4px rgba(0,0,0,.5);}
+  #announce .annRays{position:absolute;left:50%;top:50%;width:340px;height:120px;z-index:-1;
+    transform:translate(-50%,-50%);border-radius:50%;
+    background:radial-gradient(ellipse, var(--annGlow,#b18aff)55 0%, transparent 70%);}
+  @keyframes annPop{
+    0%{opacity:0;transform:translate(-50%,-50%) scale(.4);}
+    12%{opacity:1;transform:translate(-50%,-50%) scale(1.12);}
+    20%{transform:translate(-50%,-50%) scale(1);}
+    80%{opacity:1;transform:translate(-50%,-50%) scale(1);}
+    100%{opacity:0;transform:translate(-50%,-50%) scale(1.06);}
+  }
+  #announce.big .annMain{font-size:44px;}
+
+  .fortress{position:absolute;bottom:2px;width:92px;height:150px;
+    display:flex;flex-direction:column;align-items:center;justify-content:flex-end;
+    color:#fff;font-size:10px;font-weight:700;z-index:2;transition:filter .2s;}
+  .fortress svg{position:absolute;inset:0;width:100%;height:100%;}
+  .fortress .flabel{position:relative;z-index:2;text-shadow:0 1px 3px rgba(0,0,0,.6);}
+  .fortress.pf{left:0;}
+  .fortress.ef{right:0;}
+  .fortress.danger{filter:drop-shadow(0 0 6px var(--danger));animation:fortDanger .9s ease-in-out infinite;}
+  @keyframes fortDanger{0%,100%{filter:brightness(1);}50%{filter:brightness(1.25) drop-shadow(0 0 8px var(--danger));}}
+  .fortress .fbar{position:relative;z-index:2;width:82%;height:7px;background:#0006;border-radius:4px;overflow:hidden;margin:3px 0 4px;box-shadow:0 1px 2px rgba(0,0,0,.3);}
+  .fortress .ffill{height:100%;background:#7ee787;transition:width .3s;}
+
+  .unit{position:absolute;}
+  .unit .shadow{position:absolute;bottom:-4%;left:50%;transform:translateX(-50%);
+    width:72%;height:12%;border-radius:50%;background:radial-gradient(ellipse, rgba(0,0,0,.38) 0%, transparent 72%);z-index:0;}
+  .unit .hpbar{position:absolute;top:-12px;left:14%;right:14%;height:6px;background:#0004;border-radius:4px;overflow:hidden;z-index:2;box-shadow:0 1px 2px rgba(0,0,0,.25);}
+  .unit .hpfill{height:100%;background:#4CD964;transition:width .2s;}
+  .unit .iconWrap{position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;
+    z-index:1;animation:idleBob 1.7s ease-in-out infinite;}
+  @keyframes idleBob{0%,100%{transform:translateY(0);}50%{transform:translateY(-2px);}}
+  .unit.hit .iconWrap svg{animation:hitflash .22s;}
+  @keyframes hitflash{0%{filter:brightness(1.7) drop-shadow(0 3px 2px rgba(0,0,0,.3));}100%{filter:brightness(1) drop-shadow(0 3px 2px rgba(0,0,0,.3));}}
+  .unit.dying{animation:dieOut .28s ease-in forwards;}
+  @keyframes dieOut{0%{opacity:1;transform:scale(1) translateY(0);}100%{opacity:0;transform:scale(.35) translateY(8px);}}
+  .dmgpop{position:absolute;font-size:13px;font-weight:800;color:#fff;text-shadow:0 1px 2px #0007;
+    pointer-events:none;animation:popup .7s ease-out forwards;z-index:6;}
+  @keyframes popup{0%{transform:translateY(0);opacity:1;}100%{transform:translateY(-28px);opacity:0;}}
+
+  .burst{position:absolute;width:30px;height:30px;border-radius:50%;pointer-events:none;
+    transform:translate(-50%,-50%) scale(.3);opacity:1;z-index:4;
+    animation:burstAnim .32s ease-out forwards;}
+  @keyframes burstAnim{0%{transform:translate(-50%,-50%) scale(.25);opacity:.95;}
+    100%{transform:translate(-50%,-50%) scale(2.1);opacity:0;}}
+
+  .skillGlow{position:absolute;width:56px;height:56px;border-radius:50%;pointer-events:none;
+    transform:translate(-50%,-50%) scale(.4);z-index:3;border:3px solid;
+    animation:glowAnim .55s ease-out forwards;}
+  @keyframes glowAnim{0%{transform:translate(-50%,-50%) scale(.3);opacity:1;}
+    100%{transform:translate(-50%,-50%) scale(2.4);opacity:0;}}
+
+  #arena.shake{animation:shakeAnim .25s;}
+  @keyframes shakeAnim{0%,100%{transform:translateX(0);}20%{transform:translateX(-5px);}
+    40%{transform:translateX(5px);}60%{transform:translateX(-3px);}80%{transform:translateX(3px);}}
+  #arena.shakeSoft{animation:shakeSoftAnim .2s;}
+  @keyframes shakeSoftAnim{0%,100%{transform:translateX(0);}50%{transform:translateX(-2px);}}
+
+  .unit.lunge-r{animation:lungeRight .16s ease-out;}
+  .unit.lunge-l{animation:lungeLeft .16s ease-out;}
+  @keyframes lungeRight{0%{transform:translateX(0) scale(1);}50%{transform:translateX(9px) scale(1.08);}100%{transform:translateX(0) scale(1);}}
+  @keyframes lungeLeft{0%{transform:translateX(0) scale(1);}50%{transform:translateX(-9px) scale(1.08);}100%{transform:translateX(0) scale(1);}}
+  .unit.recoil-r{animation:recoilRight .2s ease-out;}
+  .unit.recoil-l{animation:recoilLeft .2s ease-out;}
+  @keyframes recoilRight{0%{transform:translateX(0) scale(1);}25%{transform:translateX(-5px) scale(1.06);}100%{transform:translateX(0) scale(1);}}
+  @keyframes recoilLeft{0%{transform:translateX(0) scale(1);}25%{transform:translateX(5px) scale(1.06);}100%{transform:translateX(0) scale(1);}}
+
+  .projectile{position:absolute;width:9px;height:9px;margin-left:-4.5px;margin-top:-4.5px;
+    border-radius:50%;pointer-events:none;box-shadow:0 0 8px 3px currentColor;z-index:5;}
+
+  /* ---- skill effect systems ---- */
+  .particle{position:absolute;pointer-events:none;z-index:7;will-change:transform,opacity;}
+  .particle.dot{border-radius:50%;}
+  .particle.txt{font-weight:900;text-shadow:0 1px 3px rgba(0,0,0,.35);}
+
+  .shieldDome{position:absolute;inset:-14%;border-radius:50%;pointer-events:none;z-index:3;
+    border:3px solid #7fb2e8;
+    background:radial-gradient(circle, transparent 55%, rgba(127,178,232,.28) 100%);
+    box-shadow:0 0 16px rgba(127,178,232,.7), inset 0 0 14px rgba(127,178,232,.5);
+    animation:domePulse 1s ease-in-out infinite;}
+  @keyframes domePulse{0%,100%{opacity:.95;transform:scale(1);}50%{opacity:.6;transform:scale(1.06);}}
+
+  .fireAura{position:absolute;inset:-8%;border-radius:50%;pointer-events:none;z-index:3;
+    background:radial-gradient(circle at 50% 70%, rgba(255,120,40,.5) 0%, rgba(255,60,20,.22) 45%, transparent 70%);
+    animation:fireFlicker .35s ease-in-out infinite;}
+  @keyframes fireFlicker{0%,100%{transform:scale(1) translateY(0);opacity:.95;}50%{transform:scale(1.12) translateY(-3%);opacity:.7;}}
+
+  .healColumn{position:absolute;width:60px;height:120px;margin-left:-30px;margin-top:-105px;
+    pointer-events:none;z-index:6;border-radius:50% 50% 40% 40%;
+    background:linear-gradient(180deg, rgba(126,231,135,0) 0%, rgba(126,231,135,.45) 60%, rgba(126,231,135,.7) 100%);
+    animation:healRise .9s ease-out forwards;}
+  @keyframes healRise{0%{opacity:0;transform:scaleY(.2);transform-origin:bottom;}30%{opacity:1;}
+    100%{opacity:0;transform:scaleY(1.15);transform-origin:bottom;}}
+
+  .waveRing{position:absolute;border-radius:50%;pointer-events:none;z-index:5;
+    border:4px solid #3a8fd6;box-shadow:0 0 12px #3a8fd6aa, inset 0 0 8px #3a8fd688;
+    transform:translate(-50%,-50%) scale(.2);animation:ringOut .7s ease-out forwards;}
+  @keyframes ringOut{0%{transform:translate(-50%,-50%) scale(.15);opacity:1;}
+    100%{transform:translate(-50%,-50%) scale(1);opacity:0;}}
+
+  .clawSlash{position:absolute;width:80px;height:8px;margin-left:-40px;margin-top:-4px;
+    border-radius:6px;pointer-events:none;z-index:7;
+    background:linear-gradient(90deg, transparent, #ff3b30, #ffb3ab, #ff3b30, transparent);
+    box-shadow:0 0 10px #ff3b30;
+    animation:slashIn .38s ease-out forwards;}
+  @keyframes slashIn{0%{opacity:0;transform:rotate(var(--slashAng,-35deg)) scaleX(.15);}
+    25%{opacity:1;transform:rotate(var(--slashAng,-35deg)) scaleX(1.1);}
+    100%{opacity:0;transform:rotate(var(--slashAng,-35deg)) scaleX(1);}}
+
+  #bottombar{background:#fff;border-top:1px solid #e5e5e0;padding:8px 10px;display:flex;flex-direction:column;gap:6px;}
+  #mineralRow{display:flex;align-items:center;gap:6px;font-size:11px;}
+  #mineralTrack{flex:1;height:9px;background:#eee;border-radius:5px;overflow:hidden;}
+  #mineralFill{height:100%;background:linear-gradient(90deg,#f5c96b,#e8a33d);transition:width .1s linear;}
+  #mineralFill.full{animation:mineralGlow 1s ease-in-out infinite;}
+  @keyframes mineralGlow{0%,100%{filter:brightness(1);}50%{filter:brightness(1.4);}}
+  #actionRow{display:flex;gap:6px;}
+  .heroCol{display:flex;flex-direction:column;gap:4px;flex:1;}
+  .deployBtn,.skillBtn{border:none;border-radius:10px;padding:6px 4px;color:#fff;font-size:10px;
+    cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:1px;box-shadow:0 2px 5px rgba(0,0,0,.2);
+    transition:transform .08s;width:100%;position:relative;overflow:hidden;}
+  .deployBtn:active,.skillBtn:active{transform:scale(.94);}
+  .deployBtn:disabled,.skillBtn:disabled{opacity:.4;cursor:not-allowed;box-shadow:none;}
+  .deployBtn b, .skillBtn b{font-size:11px;position:relative;}
+  .deployBtn span, .skillBtn span{position:relative;}
+  .skillBtn{background:linear-gradient(180deg,#b18aff,#8e44ad);}
+  .skillBtn .cdBar{position:absolute;left:0;bottom:0;top:0;background:rgba(0,0,0,.38);z-index:0;transition:width .1s linear;}
+
+  /* result overlay */
+  #resultOverlay{position:absolute;inset:0;background:#20301acc;display:none;align-items:center;justify-content:center;z-index:500;}
+  #resultOverlay.show{display:flex;}
+  #resultCard{background:#fff;border-radius:14px;padding:20px 24px;text-align:center;min-width:240px;
+    animation:cardPop .28s cubic-bezier(.22,1.6,.4,1);}
+  @keyframes cardPop{0%{transform:scale(.7);opacity:0;}100%{transform:scale(1);opacity:1;}}
+  #resultCard h2{margin:0 0 6px;font-size:20px;}
+  #resultCard .starRow span{display:inline-block;animation:starPop .4s cubic-bezier(.22,1.8,.4,1) backwards;}
+  #resultCard .starRow span:nth-child(1){animation-delay:.05s;}
+  #resultCard .starRow span:nth-child(2){animation-delay:.18s;}
+  #resultCard .starRow span:nth-child(3){animation-delay:.31s;}
+  @keyframes starPop{0%{transform:scale(0) rotate(-40deg);opacity:0;}70%{transform:scale(1.25) rotate(8deg);}100%{transform:scale(1) rotate(0);opacity:1;}}
+  #resultCard p{margin:2px 0;font-size:12px;color:#557;}
+  #resultCard .btnrow{display:flex;gap:8px;margin-top:14px;}
+  #resultCard button{flex:1;padding:8px;border-radius:8px;border:none;font-size:13px;cursor:pointer;}
+  .btnPrimary{background:var(--pink-dark);color:#fff;}
+  .btnGhost{background:#f0f0ea;color:var(--ink);}
+</style>
+</head>
+<body>
+
+<div id="rotatePrompt"><div class="icon">🔄</div><div>กรุณาหมุนจอเป็นแนวนอนเพื่อเล่นเกม</div></div>
+
+<div id="app">
+  <header>
+    <div><h1 id="headerTitle">ป่ากล้วยไม้ระเริงร่า</h1><div class="sub" id="headerSub">Project Avian Rebellion — MVP</div></div>
+    <div id="stageBadge" style="display:none;background:#fff3;padding:4px 12px;border-radius:999px;font-size:13px;font-weight:700;"></div>
+    <button id="backBtn" style="display:none;">← แผนที่</button>
+  </header>
+
+  <div id="stageSelect" class="screen active">
+    <div class="worldTitle">World 1 · <b>ป่ากล้วยไม้ระเริงร่า</b></div>
+    <div id="stageGrid"></div>
+    <div class="heroStrip" id="heroStrip"></div>
+  </div>
+
+  <div id="battle" class="screen">
+    <div id="topbar">
+      <span id="waveLabel">Wave 1/3</span>
+      <span id="stageTimer">⏱ 2:00</span>
+      <span id="stageNameLabel"></span>
+    </div>
+    <div id="bossBarWrap"><div class="bname" id="bossName"></div><div class="track"><div class="fill" id="bossFill"></div></div></div>
+    <div id="arena">
+      <div class="bgLayer bgSun"></div>
+      <div class="bgLayer bgHills"></div>
+      <div class="bgLayer bgCloud c1"></div>
+      <div class="bgLayer bgCloud c2"></div>
+      <div class="bgLayer bgCloud c3"></div>
+      <div id="scenery"></div>
+      <div class="fortress pf" id="pFort">
+        <svg viewBox="0 0 92 150" xmlns="http://www.w3.org/2000/svg" style="filter:drop-shadow(2px 4px 4px rgba(0,0,0,.25))">
+          <!-- พุ่มใบหลังบ้าน -->
+          <ellipse cx="46" cy="34" rx="40" ry="26" fill="#4f8c35"/>
+          <ellipse cx="20" cy="46" rx="20" ry="15" fill="#5e9c3e"/>
+          <ellipse cx="72" cy="44" rx="19" ry="14" fill="#5e9c3e"/>
+          <ellipse cx="46" cy="22" rx="24" ry="14" fill="#6fae4a"/>
+          <ellipse cx="32" cy="30" rx="10" ry="7" fill="#7bb85a"/>
+          <ellipse cx="62" cy="26" rx="9" ry="6" fill="#7bb85a"/>
+          <!-- ลำต้น -->
+          <path d="M38 148 L38 92 Q37 76 32 66 L42 74 L44 60 L48 74 L58 66 Q53 78 54 92 L54 148 Z" fill="#7a4a22"/>
+          <path d="M41 148 L41 95 Q41 80 46 70 Q51 80 51 95 L51 148 Z" fill="#8a5a2b"/>
+          <!-- บ้านบนต้นไม้ -->
+          <rect x="18" y="44" width="56" height="34" rx="3" fill="#a97648"/>
+          <rect x="18" y="44" width="56" height="7" fill="#c49a6c"/>
+          <path d="M12 48 L46 26 L80 48 Z" fill="#8a5a2b"/>
+          <path d="M12 48 L46 26 L80 48 L74 48 L46 31.5 L18 48 Z" fill="#6e4520"/>
+          <!-- ประตู+หน้าต่าง -->
+          <rect x="39" y="56" width="14" height="22" rx="6" fill="#5a3a1a"/>
+          <rect x="41" y="58" width="10" height="18" rx="4.5" fill="#3d2812"/>
+          <circle cx="49.5" cy="68" r="1.3" fill="#f4c542"/>
+          <rect x="23" y="55" width="11" height="10" rx="2" fill="#ffe9b8"/>
+          <path d="M23 60 L34 60 M28.5 55 L28.5 65" stroke="#8a5a2b" stroke-width="1.4"/>
+          <rect x="58" y="55" width="11" height="10" rx="2" fill="#ffe9b8"/>
+          <path d="M58 60 L69 60 M63.5 55 L63.5 65" stroke="#8a5a2b" stroke-width="1.4"/>
+          <!-- ระเบียง + บันไดเชือก -->
+          <rect x="14" y="76" width="64" height="5" rx="2" fill="#8a5a2b"/>
+          <path d="M17 76 L17 82 M27 76 L27 82 M65 76 L65 82 M75 76 L75 82" stroke="#6e4520" stroke-width="2.4"/>
+          <path d="M62 82 L66 146" stroke="#6e4520" stroke-width="2"/>
+          <path d="M70 82 L74 146" stroke="#6e4520" stroke-width="2"/>
+          <path d="M62.5 92 L70.8 92 M63.2 102 L71.6 102 M63.8 112 L72.3 112 M64.5 122 L73 122 M65.2 132 L73.7 132" stroke="#8a5a2b" stroke-width="2.4"/>
+          <!-- รังนก + ธง -->
+          <ellipse cx="24" cy="40" rx="7" ry="3.6" fill="#c9a05e"/>
+          <circle cx="24" cy="36.5" r="3.2" fill="#4a9fd8"/>
+          <path d="M46 26 L46 14" stroke="#6e4520" stroke-width="2"/>
+          <path d="M46 14 L58 17.5 L46 21 Z" fill="#e0679e"/>
+          <!-- หญ้าโคนต้น -->
+          <ellipse cx="46" cy="147" rx="34" ry="5" fill="#6fa23a"/>
+        </svg>
+        <span class="flabel">🌳 ป้อมนก</span>
+        <div class="fbar"><div class="ffill" id="pFortFill" style="width:100%"></div></div>
+      </div>
+      <div class="fortress ef" id="eFort">
+        <svg viewBox="0 0 92 150" xmlns="http://www.w3.org/2000/svg" style="filter:drop-shadow(-2px 4px 4px rgba(0,0,0,.3))">
+          <!-- หมอกม่วงหลังหอ -->
+          <ellipse cx="46" cy="120" rx="42" ry="20" fill="#3a2a4a" opacity=".3"/>
+          <!-- ปีกอาคารสองข้าง -->
+          <rect x="6" y="74" width="26" height="70" rx="2" fill="#4a4258"/>
+          <rect x="60" y="74" width="26" height="70" rx="2" fill="#4a4258"/>
+          <path d="M4 74 L19 60 L34 74 Z" fill="#332b42"/>
+          <path d="M58 74 L73 60 L88 74 Z" fill="#332b42"/>
+          <!-- เชิงเทินหูแมว -->
+          <path d="M6 74 L6 66 L12 74 M20 74 L19 64 L26 74 M32 74 L32 66" stroke="#332b42" stroke-width="3"/>
+          <!-- หอกลาง -->
+          <rect x="30" y="34" width="32" height="110" rx="2" fill="#564d68"/>
+          <rect x="30" y="34" width="32" height="8" fill="#6a6080"/>
+          <!-- ยอดหอทรงหูแมวหุ่นยนต์ -->
+          <path d="M26 36 L34 14 L42 32 L46 10 L50 32 L58 14 L66 36 Z" fill="#332b42"/>
+          <!-- เสาอากาศไฟแดง -->
+          <line x1="46" y1="10" x2="46" y2="2" stroke="#8b949a" stroke-width="2"/>
+          <circle cx="46" cy="2" r="2.6" fill="#ff3b30">
+            <animate attributeName="opacity" values="1;.3;1" dur="1.2s" repeatCount="indefinite"/>
+          </circle>
+          <!-- หน้าต่างตาแมวเรืองแสง -->
+          <path d="M38 50 Q41 44 44 50 Q41 56 38 50 Z" fill="#ffd23f"/>
+          <path d="M48 50 Q51 44 54 50 Q51 56 48 50 Z" fill="#ffd23f"/>
+          <ellipse cx="41" cy="50" rx="1" ry="2.4" fill="#332b42"/>
+          <ellipse cx="51" cy="50" rx="1" ry="2.4" fill="#332b42"/>
+          <!-- หน้าต่างม่วงเรือง -->
+          <rect x="13" y="84" width="9" height="13" rx="4" fill="#b18aff" opacity=".85"/>
+          <rect x="70" y="84" width="9" height="13" rx="4" fill="#b18aff" opacity=".85"/>
+          <rect x="39" y="70" width="14" height="16" rx="6" fill="#b18aff" opacity=".7"/>
+          <!-- ประตูกรงเหล็ก -->
+          <rect x="36" y="108" width="20" height="36" rx="9" fill="#241d30"/>
+          <path d="M40 110 L40 144 M46 108 L46 144 M52 110 L52 144" stroke="#6a6080" stroke-width="1.8"/>
+          <path d="M37 122 L55 122" stroke="#6a6080" stroke-width="1.8"/>
+          <!-- แกนพลังงานแดง -->
+          <circle cx="46" cy="97" r="4.6" fill="#241d30"/>
+          <circle cx="46" cy="97" r="2.6" fill="#ff3b30">
+            <animate attributeName="opacity" values="1;.4;1" dur="1.5s" repeatCount="indefinite"/>
+          </circle>
+          <!-- พื้นหินโคนหอ -->
+          <ellipse cx="46" cy="147" rx="36" ry="5" fill="#3a3345"/>
+        </svg>
+        <span class="flabel">🐾 กรงเหล็ก</span>
+        <div class="fbar"><div class="ffill" id="eFortFill" style="width:100%"></div></div>
+      </div>
+      <div id="vignetteWarn"></div>
+      <div id="announce"><div class="annRays"></div><div class="annMain"></div><div class="annSub"></div></div>
+    </div>
+    <div id="resultOverlay"><div id="resultCard"></div></div>
+    <div id="bottombar">
+      <div id="mineralRow">💎 <div id="mineralTrack"><div id="mineralFill" style="width:16%"></div></div><span id="mineralText">50/300</span></div>
+      <div id="actionRow"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   DATA
+========================================================= */
+const HEROES = {
+  JOJO:  {code:'JOJO', name:'โจโจ้',   cls:'Tank',    color:'#3a6ea5', el:'ดิน', hp:300, atk:80,  def:40, res:20, cost:50, atkSpeed:1.1,
+          skillName:'ขนพองสู้กลัว', skillCd:10},
+  KHAO:  {code:'KHAO', name:'ข้าวปั้น', cls:'Melee',  color:'#c98a12', el:'ไฟ', hp:220, atk:110, def:25, res:15, cost:60, atkSpeed:0.9,
+          skillName:'อารมณ์พลุ่งพล่าน', skillCd:8},
+  OCEAN: {code:'OCEAN',name:'โอเชี่ยน', cls:'Ranged', color:'#1f9d8f', el:'น้ำ', hp:150, atk:140, def:10, res:10, cost:70, atkSpeed:1.0,
+          skillName:'ยิงแม่นชวนคุย', skillCd:8},
+  MOMO:  {code:'MOMO', name:'โมโม่',   cls:'Support', color:'#e0679e', el:'ดิน', hp:180, atk:50,  def:15, res:25, cost:65, atkSpeed:1.4,
+          skillName:'กล่อมรักษา', skillCd:8},
+};
+const HERO_ORDER = ['JOJO','KHAO','OCEAN','MOMO'];
+const CLASS_ICON = {Tank:'🛡️', Melee:'⚔️', Ranged:'🏹', Support:'💚'};
+
+/* Elemental cycle used for this MVP slice only:
+   ดิน beats ลม, ลม beats น้ำ, น้ำ beats ไฟ, ไฟ beats ดิน (4-cycle) — ไม้ is a neutral wildcard (bosses).
+   NOTE: MVP-only remap of enemy elements so the elemental system is observable in a single World slice;
+   full 100-stage canon (World1 = all ไม้) is preserved in the design docs and will reconcile later. */
+const CYCLE = ['ดิน','ลม','น้ำ','ไฟ'];
+function elementMult(atkEl, defEl){
+  if(!atkEl || !defEl || atkEl===defEl) return 1.0;
+  const ia = CYCLE.indexOf(atkEl), id = CYCLE.indexOf(defEl);
+  if(ia===-1 || id===-1) return 1.0; // ไม้ (boss) vs anything = neutral
+  if((ia+1)%4===id) return 1.5;
+  if((id+1)%4===ia) return 0.67;
+  return 1.0;
+}
+
+/* Archetype base stats per stage (from MainStory_Complete.md World1 appendix, exact numbers) */
+const ARCHETYPE = {
+  Swarm:  {el:'ลม', atkSpeed:1.0, hp:[150,158,167,175,184,192,200,209,217,226], atk:[15,16,17,18,18,19,20,21,22,23]},
+  Brawler:{el:'ไฟ', atkSpeed:1.1, hp:[300,324,348,372,396,420,444,468,492,516], atk:[25,27,29,31,33,35,37,39,41,43]},
+  Blocker:{el:'น้ำ', atkSpeed:1.3, hp:{3:450,4:497,5:544,6:590,7:637,8:684,9:731,10:778}, atk:{3:12,4:13,5:13,6:14,7:14,8:15,9:15,10:16}},
+  Striker:{el:'ลม', atkSpeed:0.9, hp:{4:180,5:192,6:203,7:215,8:226,9:238,10:249}, atk:{4:30,5:33,6:36,7:39,8:42,9:46,10:49}},
+  Elite:  {el:'ดิน', atkSpeed:1.0, hp:{6:994,7:1087,8:1181,9:1274}, atk:{6:50,7:54,8:59,9:64}},
+};
+
+/* Wave composition per stage (1-indexed). Stage 5 & 10 replace Wave3 with a boss. */
+const STAGES = [
+  {n:1,  type:'normal',  waves:[['Swarm,6'],['Swarm,3','Brawler,2'],['Brawler,3']]},
+  {n:2,  type:'normal',  waves:[['Swarm,6'],['Swarm,2','Brawler,3'],['Brawler,4']]},
+  {n:3,  type:'normal',  waves:[['Swarm,5'],['Swarm,2','Brawler,2','Blocker,1'],['Brawler,3','Blocker,1']]},
+  {n:4,  type:'normal',  waves:[['Swarm,5'],['Brawler,2','Blocker,2','Striker,1'],['Brawler,2','Blocker,1','Striker,2']]},
+  {n:5,  type:'miniboss',waves:[['Swarm,6'],['Swarm,3','Brawler,2'],['Boss']], boss:{name:'เหล็กแฟง',hp:3060,atk:95,el:'ไม้',atkSpeed:1.0, skillName:'ตะปบสนิมถล่ม', skillCd:12}},
+  {n:6,  type:'normal',  waves:[['Swarm,4','Striker,2'],['Brawler,3','Blocker,2'],['Brawler,2','Elite,1']]},
+  {n:7,  type:'normal',  waves:[['Swarm,4','Striker,2'],['Brawler,2','Blocker,2','Striker,1'],['Blocker,2','Elite,1']]},
+  {n:8,  type:'normal',  waves:[['Swarm,3','Striker,3'],['Brawler,3','Blocker,2'],['Striker,2','Elite,1']]},
+  {n:9,  type:'normal',  waves:[['Swarm,3','Striker,3'],['Brawler,1','Blocker,2','Striker,2'],['Blocker,2','Elite,1']]},
+  {n:10, type:'worldboss',waves:[['Swarm,6'],['Swarm,3','Brawler,2'],['Boss']], boss:{name:'คอร์เนเลียส',hp:10000,atk:150,el:'ไม้',atkSpeed:2.0, skillName:'กรงเล็บมหาปฐพี', skillCd:10}},
+];
+
+const PLAYER_FORT_HP = 3000, ENEMY_FORT_HP = 1800;
+const MOVE_SPEED_PLAYER = 9, MOVE_SPEED_ENEMY = 7, ENGAGE_RANGE = 7;
+const RANGED_ENGAGE_RANGE = 20; // นักยิงระยะไกลหยุดยืนยิงจากระยะห่าง ~3 ตัวละคร แทนที่จะกรูเข้าประชิด
+const STAGE_TIME_LIMIT = 120; // วินาทีต่อด่าน — หมดเวลา = แพ้
+/* ขนาดตัวละคร (px) — ปรับตัวเลขชุดนี้ชุดเดียวเพื่อย่อ/ขยายทั้งเกม */
+const UNIT_SIZE = {player:76, enemy:70, boss:150};
+const KILL_MINERAL_REWARD = 5;
+/* เกณฑ์เวลาบังคับไปเวฟถัดไปถ้าเวฟปัจจุบันค้างนานเกินไป: ด่าน 1-2 ให้ไว (10 วิ) ด่านอื่นผ่อนกว่า (15 วิ) */
+function waveForceThreshold(stageN){ return stageN<=2 ? 10 : 15; }
+
+/* =========================================================
+   SOUND (procedural — ไม่ต้องใช้ไฟล์เสียงภายนอก, สร้าง AudioContext ตอนคลิกครั้งแรก)
+========================================================= */
+const ELEMENT_TONE = {
+  'ดิน': {freq:150, type:'triangle'},
+  'ลม': {freq:560, type:'sine'},
+  'น้ำ': {freq:320, type:'sine'},
+  'ไฟ': {freq:220, type:'sawtooth'},
+  'ไม้': {freq:190, type:'square'},
+};
+const ELEMENT_COLOR = {'ดิน':'#8a5a2b','ลม':'#a6ddd4','น้ำ':'#3a8fd6','ไฟ':'#e85d2c','ไม้':'#7a8a4a'};
+
+const sfx = (function(){
+  let ctx = null;
+  function ensureCtx(){
+    if(typeof window === 'undefined') return null;
+    if(!ctx){ try{ ctx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ ctx=null; } }
+    return ctx;
+  }
+  // tonal oscillator voice — used for our side's musical, feathery sounds
+  function tone(freq, dur, type, vol, delay, glideTo){
+    const c = ensureCtx(); if(!c) return;
+    const t0 = c.currentTime + (delay||0);
+    const osc = c.createOscillator(), gain = c.createGain();
+    osc.type = type||'sine';
+    osc.frequency.setValueAtTime(freq, t0);
+    if(glideTo) osc.frequency.exponentialRampToValueAtTime(glideTo, t0+dur);
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.exponentialRampToValueAtTime(vol||0.1, t0+0.008);
+    gain.gain.exponentialRampToValueAtTime(0.001, t0+dur);
+    osc.connect(gain); gain.connect(c.destination);
+    osc.start(t0); osc.stop(t0+dur+0.02);
+  }
+  // filtered white-noise burst — used for the monster side's gritty, growly/hissy sounds
+  function noiseBurst(dur, vol, filterFreq, delay, filterType){
+    const c = ensureCtx(); if(!c) return;
+    const t0 = c.currentTime + (delay||0);
+    const len = Math.max(1, Math.floor(c.sampleRate*dur));
+    const buf = c.createBuffer(1, len, c.sampleRate);
+    const data = buf.getChannelData(0);
+    for(let i=0;i<len;i++) data[i] = (Math.random()*2-1) * Math.pow(1-i/len, 1.3);
+    const src = c.createBufferSource(); src.buffer = buf;
+    const filt = c.createBiquadFilter();
+    filt.type = filterType||'bandpass'; filt.frequency.setValueAtTime(filterFreq||800, t0); filt.Q.value = 1.1;
+    const gain = c.createGain();
+    gain.gain.setValueAtTime(vol||0.1, t0);
+    gain.gain.exponentialRampToValueAtTime(0.001, t0+dur);
+    src.connect(filt); filt.connect(gain); gain.connect(c.destination);
+    src.start(t0); src.stop(t0+dur);
+  }
+  return {
+    _tone: tone, _noise: noiseBurst, // เปิดให้ระบบ BGM ใช้เครื่องมือเสียงร่วมกัน
+    deploy(){ tone(520,0.09,'square',0.09); tone(760,0.07,'square',0.06,0.05); },
+    // normal attack impact — bright & musical for us, gritty & noisy for the cat army
+    hit(el, side, ranged){
+      const t = ELEMENT_TONE[el]||{freq:220,type:'sawtooth'};
+      if(side==='player') tone(t.freq*1.3, 0.08, ranged?'sine':'triangle', 0.09);
+      else { noiseBurst(0.09, 0.16, t.freq*1.5, 0, 'bandpass'); tone(t.freq*0.65, 0.07, 'sawtooth', 0.05, 0.01); }
+    },
+    // ranged attack launch — twang/chirp for us, hiss for them
+    shootLaunch(el, side){
+      const t = ELEMENT_TONE[el]||{freq:500,type:'sine'};
+      if(side==='player') tone(t.freq*1.15, 0.09, 'sine', 0.08, 0, t.freq*1.9);
+      else noiseBurst(0.07, 0.11, t.freq*2.2, 0, 'highpass');
+    },
+    crit(el, side){
+      const t = ELEMENT_TONE[el]||{freq:180,type:'sawtooth'};
+      tone(t.freq*1.6, 0.1, side==='player'?'sine':'sawtooth', 0.12);
+      tone(t.freq*2.4, 0.09, side==='player'?'sine':'sawtooth', 0.08, 0.04);
+    },
+    skillJojo(){ tone(200,0.22,'triangle',0.13); tone(150,0.28,'triangle',0.1,0.08); },
+    skillKhao(){ tone(300,0.08,'square',0.14); tone(520,0.13,'square',0.13,0.06); },
+    skillOcean(){ tone(720,0.08,'sine',0.13); tone(960,0.11,'sine',0.11,0.07); },
+    skillMomo(){ tone(880,0.17,'sine',0.11); tone(1180,0.22,'sine',0.09,0.1); tone(1320,0.2,'sine',0.06,0.2); },
+    bossWarn(){ noiseBurst(0.42,0.14,120,0,'lowpass'); tone(90,0.5,'sawtooth',0.15,0.05); tone(66,0.5,'sawtooth',0.1,0.2); },
+    bossAttack(){ noiseBurst(0.16,0.17,140,0,'lowpass'); tone(80,0.22,'sawtooth',0.13,0.02); },
+    fortHitPlayer(){ tone(150,0.15,'square',0.07); tone(100,0.18,'square',0.05,0.05); },
+    fortHitEnemy(){ tone(700,0.07,'square',0.1); tone(500,0.09,'square',0.08,0.04); },
+    waveClear(){ [660,880].forEach((f,i)=>tone(f,0.14,'sine',0.11,i*0.1)); },
+    win(){ [523,659,784,1046].forEach((f,i)=>tone(f,0.18,'sine',0.12,i*0.12)); },
+    lose(){ [400,340,280].forEach((f,i)=>tone(f,0.25,'sine',0.12,i*0.18)); },
+  };
+})();
+
+/* =========================================================
+   BGM ENGINE — เพลงประกอบสร้างด้วย WebAudio ไม่ใช้ไฟล์ภายนอก
+   ทุกด่านมีทำนอง/คีย์/จังหวะของตัวเอง (seed จากเลขด่าน)
+   ด่าน MiniBoss & WorldBoss = คีย์ minor + จังหวะเร็ว + กลอง/ไฮแฮทรัว → ตื่นเต้น
+========================================================= */
+const bgm = (function(){
+  let timer = null, step = 0, cfg = null;
+  function seededRng(seed){
+    let s = (seed*2654435761) % 4294967296;
+    return function(){ s = (s*1664525 + 1013904223) % 4294967296; return s/4294967296; };
+  }
+  const MAJOR = [0,2,4,7,9,12,14,16];   // เพนทาโทนิกเมเจอร์ = สดใส
+  const MINOR = [0,3,5,7,10,12,15,17];  // ไมเนอร์ = ตึงเครียด
+  function noteFreq(rootHz, semi){ return rootHz * Math.pow(2, semi/12); }
+
+  function buildConfig(stageN, isBoss){
+    const rng = seededRng(stageN*7919+13);
+    const roots = [220, 246.9, 261.6, 293.7, 329.6]; // A3 B3 C4 D4 E4
+    const root = roots[stageN % roots.length];
+    const scale = isBoss ? MINOR : MAJOR;
+    const bpm = isBoss ? 168 : (100 + stageN*5);
+    // สุ่มทำนอง 16 สเต็ปเฉพาะด่านนี้ — ด่านเดิมได้เพลงเดิม ด่านต่างกันได้เพลงต่างกัน
+    const melody = [];
+    for(let i=0;i<16;i++){
+      if(rng() < (isBoss?0.8:0.62)) melody.push(scale[Math.floor(rng()*scale.length)]);
+      else melody.push(null); // ตัวหยุด
+    }
+    const bassSemis = isBoss ? [0,0,3,0, 5,5,3,0] : [0,7,5,7];
+    return {root, scale, bpm, melody, bassSemis, isBoss};
+  }
+
+  function tick(){
+    if(!cfg) return;
+    const s16 = step % 16;
+    const t = cfg;
+    const semi = t.melody[s16];
+    if(semi !== null){
+      sfx._tone(noteFreq(t.root*2, semi), t.isBoss?0.12:0.2, t.isBoss?'square':'triangle', t.isBoss?0.028:0.032);
+    }
+    if(t.isBoss){
+      if(s16 % 2 === 0){
+        const b = t.bassSemis[(s16/2) % t.bassSemis.length];
+        sfx._tone(noteFreq(t.root/2, b), 0.14, 'sawtooth', 0.04);
+      }
+      if(s16 % 4 === 2) sfx._noise(0.05, 0.022, 6000, 0, 'highpass'); // ไฮแฮทเร่งจังหวะ
+      if(s16 === 0 || s16 === 8) sfx._noise(0.1, 0.05, 150, 0, 'lowpass'); // กลองใหญ่
+    } else {
+      if(s16 % 4 === 0){
+        const b = t.bassSemis[(s16/4) % t.bassSemis.length];
+        sfx._tone(noteFreq(t.root/2, b), 0.3, 'triangle', 0.038);
+      }
+      if(s16 === 8) sfx._noise(0.04, 0.012, 5000, 0, 'highpass');
+    }
+    step++;
+  }
+
+  return {
+    start(stageN, isBoss){
+      this.stop();
+      cfg = buildConfig(stageN, isBoss);
+      step = 0;
+      const stepMs = 60000 / cfg.bpm / 2; // โน้ตเขบ็ตหนึ่งชั้น
+      timer = setInterval(tick, stepMs);
+    },
+    /* สลับเป็นเพลงบอสกลางด่าน (ตอนบอสโผล่ในเวฟสุดท้าย) */
+    bossMode(stageN){ if(cfg && !cfg.isBoss) this.start(stageN, true); },
+    stop(){ if(timer){ clearInterval(timer); timer = null; } cfg = null; },
+  };
+})();
+
+/* =========================================================
+   UNIT ICONS (SVG flat-design แทนจุดกลม — ไม่ต้องใช้ไฟล์ภาพภายนอก)
+========================================================= */
+const HERO_ACCESSORY = {
+  JOJO:  `<path d="M12 22 L20 18.5 L28 22 L28 29.5 L20 33 L12 29.5 Z" fill="#dfe8f2" opacity=".9"/>
+          <path d="M12 22 L20 18.5 L28 22 L28 25 L20 28 L12 25 Z" fill="#fff" opacity=".55"/>
+          <circle cx="20" cy="25.5" r="2.2" fill="#f4c542"/>`, // เกราะอกโล่เหล็ก
+  KHAO:  `<path d="M10 6.5 Q20 3.5 30 6.5 L30 10.5 Q20 7.5 10 10.5 Z" fill="#e74c3c"/>
+          <path d="M29 7 L35 4 L33 9.5 Z" fill="#e74c3c"/>`, // ผ้าคาดหัวปลายสะบัด
+  OCEAN: `<path d="M4.5 18 Q-1 18 1.5 26 Q6.5 24 8 18.5 Z" fill="#5a3a1a"/>
+          <line x1="2.5" y1="19.5" x2="8" y2="24" stroke="#5a3a1a" stroke-width="1.6"/>
+          <line x1="2.5" y1="25" x2="8" y2="21" stroke="#3a2410" stroke-width="1.2"/>`, // หนังสติ๊ก
+  MOMO:  `<circle cx="30.5" cy="7.5" r="3.4" fill="#ffd1e6"/><circle cx="34" cy="10" r="2.7" fill="#ffb3d4"/>
+          <circle cx="30" cy="12.5" r="2.7" fill="#ffd1e6"/><circle cx="31.6" cy="10" r="1.7" fill="#f4c542"/>`, // ดอกไม้ทัดหู
+};
+function birdIconSVG(code, color){
+  const gid = 'bg_'+code;
+  return `<svg viewBox="0 0 40 42" width="100%" height="100%" style="overflow:visible;filter:drop-shadow(0 4px 3px rgba(0,0,0,.28))">
+    <defs>
+      <linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="${color}" stop-opacity="1"/>
+        <stop offset="1" stop-color="#000" stop-opacity=".22"/>
+      </linearGradient>
+    </defs>
+    <!-- หางขนนก -->
+    <path d="M8 27 Q1 24 2 31 Q6 30 8 30 Z" fill="${color}"/>
+    <path d="M8 29 Q0 30 3 35 Q7 33 9 31 Z" fill="${color}" opacity=".8"/>
+    <!-- ลำตัว -->
+    <ellipse cx="20" cy="26" rx="12.5" ry="10" fill="url(#${gid})"/>
+    <ellipse cx="20" cy="26" rx="12.5" ry="10" fill="${color}" opacity=".55"/>
+    <!-- ท้องสีอ่อน -->
+    <ellipse cx="22" cy="29" rx="7" ry="6" fill="#fff" opacity=".35"/>
+    <!-- ปีก -->
+    <path d="M9 22 Q4 27 9 33 Q15 31 16 25 Q13 21 9 22 Z" fill="#000" opacity=".18"/>
+    <path d="M9.5 22.5 Q5.5 27 9.8 32 Q14.5 30 15.3 25.3 Z" fill="${color}" style="filter:brightness(.82)"/>
+    <line x1="9" y1="26" x2="14" y2="25" stroke="#000" stroke-width=".8" opacity=".2"/>
+    <line x1="9.5" y1="29" x2="14" y2="27.5" stroke="#000" stroke-width=".8" opacity=".2"/>
+    <!-- หัว -->
+    <circle cx="22" cy="12.5" r="8.5" fill="${color}"/>
+    <circle cx="22" cy="12.5" r="8.5" fill="url(#${gid})" opacity=".35"/>
+    <!-- ปาก -->
+    <path d="M29 10.5 L37 13 L29 16 Q30.5 13.2 29 10.5 Z" fill="#f4b942"/>
+    <path d="M29.5 13.2 L36 13 L29.5 15.4 Z" fill="#d99a28"/>
+    ${HERO_ACCESSORY[code]||''}
+    <!-- ตา + แก้ม -->
+    <circle cx="19.5" cy="10.8" r="2.9" fill="#fff"/>
+    <circle cx="20.4" cy="10.9" r="1.5" fill="#222"/>
+    <circle cx="20" cy="10.4" r=".55" fill="#fff"/>
+    <ellipse cx="26" cy="15.5" rx="2" ry="1.3" fill="#ff8b8b" opacity=".55"/>
+    <!-- ขา -->
+    <path d="M17 35.5 L17 39 M15.3 39 L18.7 39" stroke="#e8a33d" stroke-width="1.7" stroke-linecap="round"/>
+    <path d="M24 35.5 L24 39 M22.3 39 L25.7 39" stroke="#e8a33d" stroke-width="1.7" stroke-linecap="round"/>
+  </svg>`;
+}
+/* มอนสเตอร์ = กองทัพหุ่นยนต์แมว → เติมกลิ่นอายจักรกล: เสาอากาศ, แกนพลังงานที่อก, หางเป็นข้อต่อ */
+const ARCH_EXTRA = {
+  Swarm:  ()=>'',
+  Brawler:(c)=>`<path d="M11.5 5 L15.5 10.5 L8.5 11 Z" fill="#e8e0d4"/><path d="M28.5 5 L31.5 11 L24.5 10.5 Z" fill="#e8e0d4"/>
+    <path d="M14 20 L17 23 L14 23 Z" fill="#fff"/><path d="M26 20 L23 23 L26 23 Z" fill="#fff"/>`,
+  Blocker:()=>`<rect x="10.5" y="20" width="19" height="13" rx="3" fill="#cfd6dc"/>
+    <rect x="10.5" y="20" width="19" height="4" rx="2" fill="#eef2f5"/>
+    <circle cx="20" cy="27" r="2.6" fill="#8b949a"/><circle cx="20" cy="27" r="1.2" fill="#5a6672"/>
+    <circle cx="13.5" cy="23" r=".9" fill="#8b949a"/><circle cx="26.5" cy="23" r=".9" fill="#8b949a"/>`,
+  Striker:()=>`<path d="M5 24 Q-1 22 1.5 29.5 Q6.5 27.5 8.5 23.5 Z" fill="#4a2f6b"/>
+    <line x1="3" y1="25.5" x2="8.5" y2="28.5" stroke="#4a2f6b" stroke-width="1.5"/>
+    <path d="M12 8 L14 3 L16 8" stroke="#3a2410" stroke-width="1.3" fill="none"/>`,
+  Elite:  ()=>`<circle cx="20" cy="21" r="17" fill="none" stroke="#ff3b30" stroke-width="1.6" opacity="0.5" stroke-dasharray="4 3"/>
+    <path d="M13 3 L16 8 L10 8 Z" fill="#f4c542"/><path d="M27 3 L30 8 L24 8 Z" fill="#f4c542"/>`,
+};
+function catIconSVG(archetype, color){
+  const gid = 'cg_'+archetype;
+  const angry = archetype==='Elite';
+  const eyeColor = angry ? '#ff3b30' : '#ffd23f';
+  const extra = (ARCH_EXTRA[archetype]||ARCH_EXTRA.Swarm)(color);
+  return `<svg viewBox="0 0 40 42" width="100%" height="100%" style="overflow:visible;filter:drop-shadow(0 4px 3px rgba(0,0,0,.28))">
+    <defs>
+      <linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="${color}"/>
+        <stop offset="1" stop-color="#000" stop-opacity=".25"/>
+      </linearGradient>
+    </defs>
+    <!-- หางหุ่นยนต์ข้อต่อ -->
+    <circle cx="33.5" cy="30" r="2.6" fill="${color}" style="filter:brightness(.85)"/>
+    <circle cx="36" cy="26.5" r="2.1" fill="${color}" style="filter:brightness(.75)"/>
+    <circle cx="37.5" cy="22.8" r="1.6" fill="#8b949a"/>
+    <!-- ตัว -->
+    <ellipse cx="20" cy="28" rx="11.5" ry="8.5" fill="url(#${gid})"/>
+    <ellipse cx="20" cy="28" rx="11.5" ry="8.5" fill="${color}" opacity=".5"/>
+    <!-- แกนพลังงานที่อก -->
+    <circle cx="20" cy="28" r="3.4" fill="#2b2f33"/>
+    <circle cx="20" cy="28" r="2" fill="${angry?'#ff3b30':'#63d0ff'}"><animate attributeName="opacity" values="1;.45;1" dur="1.4s" repeatCount="indefinite"/></circle>
+    <!-- หัว -->
+    <circle cx="20" cy="14.5" r="9.5" fill="${color}"/>
+    <circle cx="20" cy="14.5" r="9.5" fill="url(#${gid})" opacity=".3"/>
+    <!-- หู -->
+    <path d="M10.5 6 L15.5 13.5 L8.5 15 Z" fill="${color}"/>
+    <path d="M29.5 6 L24.5 13.5 L31.5 15 Z" fill="${color}"/>
+    <path d="M11.5 8.5 L14.5 12.8 L10.5 13.6 Z" fill="#ffb0c4" opacity=".7"/>
+    <path d="M28.5 8.5 L25.5 12.8 L29.5 13.6 Z" fill="#ffb0c4" opacity=".7"/>
+    <!-- เสาอากาศหุ่นยนต์ -->
+    <line x1="20" y1="5.5" x2="20" y2="2" stroke="#8b949a" stroke-width="1.3"/>
+    <circle cx="20" cy="1.6" r="1.4" fill="#ff3b30"><animate attributeName="opacity" values="1;.3;1" dur="1s" repeatCount="indefinite"/></circle>
+    ${extra}
+    <!-- ตาไฟ + รอยต่อโลหะ -->
+    <ellipse cx="16.3" cy="13.8" rx="2.2" ry="2.4" fill="#2b2f33"/>
+    <ellipse cx="23.7" cy="13.8" rx="2.2" ry="2.4" fill="#2b2f33"/>
+    <circle cx="16.3" cy="13.8" r="1.2" fill="${eyeColor}"/>
+    <circle cx="23.7" cy="13.8" r="1.2" fill="${eyeColor}"/>
+    <path d="M17 19 Q20 21.5 23 19" stroke="#0008" stroke-width="1.4" fill="none" stroke-linecap="round"/>
+    <line x1="12" y1="17.5" x2="15" y2="17" stroke="#0006" stroke-width="1"/>
+    <line x1="28" y1="17.5" x2="25" y2="17" stroke="#0006" stroke-width="1"/>
+    <!-- อุ้งเท้า -->
+    <ellipse cx="14.5" cy="36" rx="3" ry="1.8" fill="${color}" style="filter:brightness(.8)"/>
+    <ellipse cx="25.5" cy="36" rx="3" ry="1.8" fill="${color}" style="filter:brightness(.8)"/>
+  </svg>`;
+}
+function bossIconSVG(color){
+  return `<svg viewBox="0 0 44 46" width="100%" height="100%" style="overflow:visible;filter:drop-shadow(0 5px 4px rgba(0,0,0,.4))">
+    <defs>
+      <linearGradient id="bossg" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="${color}"/>
+        <stop offset="1" stop-color="#000" stop-opacity=".3"/>
+      </linearGradient>
+      <radialGradient id="bossAura">
+        <stop offset="0" stop-color="#ff3b30" stop-opacity=".35"/>
+        <stop offset="1" stop-color="#ff3b30" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+    <circle cx="22" cy="24" r="22" fill="url(#bossAura)">
+      <animate attributeName="r" values="20;23;20" dur="1.8s" repeatCount="indefinite"/>
+    </circle>
+    <!-- หนวดออร่า -->
+    <path d="M22 32 Q7 38 4 22 Q9 28 13 20 L22 37 L31 20 Q35 28 40 22 Q37 38 22 32 Z" fill="${color}" opacity="0.5"/>
+    <!-- ตัวเกราะหนัก -->
+    <ellipse cx="22" cy="29" rx="14.5" ry="10" fill="url(#bossg)"/>
+    <path d="M12 25 L22 21 L32 25 L32 33 L22 37 L12 33 Z" fill="#3a3f45" opacity=".8"/>
+    <path d="M12 25 L22 21 L32 25 L32 28 L22 31.5 L12 28 Z" fill="#5a6672" opacity=".9"/>
+    <circle cx="22" cy="29" r="3.2" fill="#ff3b30"><animate attributeName="opacity" values="1;.4;1" dur="1.1s" repeatCount="indefinite"/></circle>
+    <!-- หัว -->
+    <circle cx="22" cy="15" r="11" fill="${color}"/>
+    <circle cx="22" cy="15" r="11" fill="url(#bossg)" opacity=".3"/>
+    <path d="M10 6 L15.5 14 L8 14.5 Z" fill="${color}"/>
+    <path d="M34 6 L28.5 14 L36 14.5 Z" fill="${color}"/>
+    <!-- มงกุฎทอง -->
+    <path d="M13 4 L18 9.5 L22 2.5 L26 9.5 L31 4 L28.5 11.5 L15.5 11.5 Z" fill="#f4c542"/>
+    <path d="M13 4 L18 9.5 L22 2.5 L26 9.5 L31 4 L30 7 L14 7 Z" fill="#ffe28a"/>
+    <circle cx="22" cy="5.5" r="1.3" fill="#e74c3c"/>
+    <!-- ตา -->
+    <ellipse cx="17.5" cy="15" rx="2.8" ry="3" fill="#2b2f33"/>
+    <ellipse cx="26.5" cy="15" rx="2.8" ry="3" fill="#2b2f33"/>
+    <circle cx="17.5" cy="15" r="1.6" fill="#ff3b30"><animate attributeName="opacity" values="1;.5;1" dur=".9s" repeatCount="indefinite"/></circle>
+    <circle cx="26.5" cy="15" r="1.6" fill="#ff3b30"><animate attributeName="opacity" values="1;.5;1" dur=".9s" repeatCount="indefinite"/></circle>
+    <path d="M18 21 L20 19.5 L22 21 L24 19.5 L26 21" stroke="#0008" stroke-width="1.4" fill="none" stroke-linecap="round"/>
+  </svg>`;
+}
+const ARCH_COLOR = {Swarm:'#c9b896', Brawler:'#c67a3c', Blocker:'#5a6672', Striker:'#7a4fb5', Elite:'#a52a2a'};
+function getIconHtml(u){
+  if(u.side==='player') return birdIconSVG(u.code, u.color);
+  if(u.isBoss) return bossIconSVG('#4a2a5c');
+  return catIconSVG(u.name, ARCH_COLOR[u.name] || '#8a5a3c');
+}
+function unitSizePx(u){
+  if(u.isBoss) return UNIT_SIZE.boss;
+  return u.side==='player' ? UNIT_SIZE.player : UNIT_SIZE.enemy;
+}
+
+/* =========================================================
+   PERSISTENCE
+========================================================= */
+function loadProgress(){
+  try{ return JSON.parse(localStorage.getItem('avianRebellionMVP')||'{"cleared":0,"stars":{}}'); }
+  catch(e){ return {cleared:0, stars:{}}; }
+}
+function saveProgress(p){ localStorage.setItem('avianRebellionMVP', JSON.stringify(p)); }
+let progress = loadProgress();
+
+/* =========================================================
+   STAGE SELECT SCREEN
+========================================================= */
+function renderStageSelect(){
+  const grid = document.getElementById('stageGrid');
+  grid.innerHTML = '';
+  STAGES.forEach(s=>{
+    const locked = s.n > progress.cleared + 1;
+    const btn = document.createElement('button');
+    btn.className = 'stageNode ' + (s.type!=='normal' ? (s.type==='worldboss'?'world':'mini') : '') + (locked?' locked':'');
+    const stars = progress.stars[s.n] || 0;
+    btn.innerHTML = `
+      <div class="num">${s.n}</div>
+      ${s.type!=='normal' ? `<div class="tag">${s.type==='worldboss'?'WorldBoss':'MiniBoss'}</div>` : ''}
+      <div class="stars">${locked ? '🔒' : '★'.repeat(stars) + '☆'.repeat(3-stars)}</div>
+    `;
+    if(!locked) btn.onclick = () => startStage(s.n);
+    grid.appendChild(btn);
+  });
+
+  const strip = document.getElementById('heroStrip');
+  strip.innerHTML = HERO_ORDER.map(code=>{
+    const h = HEROES[code];
+    return `<div class="heroChip"><span style="width:22px;height:22px;display:flex;align-items:center;justify-content:center;">${birdIconSVG(code, h.color).replace('width="30" height="30"','width="20" height="20"')}</span>${h.name} · ${CLASS_ICON[h.cls]||''} ${h.cls} · ธาตุ${h.el}</div>`;
+  }).join('');
+}
+
+/* =========================================================
+   BATTLE ENGINE
+========================================================= */
+let G = null; // battle state
+let rafId = null;
+let lastTs = 0;
+
+function parseWaveGroup(groupArr){
+  // groupArr like ['Swarm,3','Brawler,2'] or ['Boss']
+  const list = [];
+  groupArr.forEach(entry=>{
+    if(entry==='Boss') { list.push({archetype:'Boss'}); return; }
+    const [name,countStr] = entry.split(',');
+    const count = parseInt(countStr,10);
+    for(let i=0;i<count;i++) list.push({archetype:name});
+  });
+  return list;
+}
+
+function makeEnemy(archName, stageN, bossDef){
+  if(archName==='Boss'){
+    return {
+      id:Math.random(), side:'enemy', isBoss:true, name:bossDef.name,
+      hp:bossDef.hp, maxhp:bossDef.hp, atk:bossDef.atk, def:0, el:bossDef.el,
+      atkSpeed:bossDef.atkSpeed, x:88, y:62, atkCd:0, alive:true, breached:false,
+      skillTimer:0
+    };
+  }
+  const a = ARCHETYPE[archName];
+  const hp = Array.isArray(a.hp) ? a.hp[stageN-1] : a.hp[stageN];
+  const atk = Array.isArray(a.atk) ? a.atk[stageN-1] : a.atk[stageN];
+  return {
+    id:Math.random(), side:'enemy', isBoss:false, name:archName,
+    hp, maxhp:hp, atk, def:0, el:a.el, atkSpeed:a.atkSpeed,
+    x: 88 + (Math.random()*6-3), y: 48+Math.random()*32, atkCd:Math.random()*0.5, alive:true, breached:false
+  };
+}
+
+let unitEls = new Map(); // unit.id -> {el, hpFillEl}
+
+function startStage(n){
+  const stageDef = STAGES[n-1];
+  G = {
+    stageDef, waveIdx:0, spawnQueue: parseWaveGroup(stageDef.waves[0]),
+    pendingSpawns: [], spawnTimer: 0,
+    playerUnits: [], enemyUnits: [],
+    mineral:50, mineralCap:300,
+    pFortHP:PLAYER_FORT_HP, eFortHP:ENEMY_FORT_HP,
+    timeLeft: STAGE_TIME_LIMIT,
+    lastSkillAnnounce: {},
+    allWavesSpawned:false, allWavesDone:false, ended:false, waveElapsed:0,
+    stats:{dealt:0, kills:0, byHero:{JOJO:0, KHAO:0, OCEAN:0, MOMO:0}}
+  };
+  // reset all cosmetic/engine state left over from any previous run
+  unitEls.forEach(u=>u.el.remove());
+  unitEls = new Map();
+  dmgPops = [];
+  effects = [];
+  projectiles = [];
+  document.getElementById('vignetteWarn').classList.remove('show');
+
+  // สุ่มฉากใหม่ทุกครั้ง — ต้นไม้ หิน หญ้า ท่อนไม้ ฟาง ไม่ซ้ำกัน
+  generateScenery();
+
+  // materialize enemies for wave 1
+  materializeWave();
+
+  document.getElementById('stageSelect').classList.remove('active');
+  document.getElementById('battle').classList.add('active');
+  document.getElementById('backBtn').style.display='inline-block';
+  const stageBadge = document.getElementById('stageBadge');
+  stageBadge.style.display = 'block';
+  stageBadge.textContent = `ด่าน ${n} / 10`;
+  document.getElementById('stageNameLabel').textContent = stageDef.type!=='normal' ? (stageDef.type==='worldboss'?'⚔️ WorldBoss':'⚔️ MiniBoss') : '';
+  document.getElementById('resultOverlay').classList.remove('show');
+  document.querySelectorAll('#arena .unit, #arena .dmgpop, #arena .burst, #arena .skillGlow, #arena .projectile, #arena .particle, #arena .healColumn, #arena .waveRing, #arena .clawSlash').forEach(el=>el.remove());
+
+  buildActionButtons();
+  updateWaveLabel();
+
+  // ป้ายชื่อ World + ด่าน ตัวใหญ่กลางจอตอนเริ่ม
+  const stageTag = stageDef.type==='worldboss' ? ' · ⚔️ WORLD BOSS' : (stageDef.type==='miniboss' ? ' · ⚔️ MINI BOSS' : '');
+  announce(`ด่าน ${n}${stageTag}`, 'World 1 · ป่ากล้วยไม้ระเริงร่า', '#3d6b1f', '#b8e08a', 2.4, true);
+
+  // BGM ประจำด่าน — ด่านบอสได้เพลงตื่นเต้นตั้งแต่ต้น
+  bgm.start(n, stageDef.type!=='normal');
+
+  lastTs = 0;
+  if(rafId) cancelAnimationFrame(rafId);
+  rafId = requestAnimationFrame(loop);
+}
+
+function materializeWave(){
+  const hasBoss = G.spawnQueue.some(e=>e.archetype==='Boss');
+  if(hasBoss){
+    sfx.bossWarn();
+    bgm.bossMode(G.stageDef.n);
+    const arena = document.getElementById('arena');
+    arena.classList.remove('bossFlash'); void arena.offsetWidth; arena.classList.add('bossFlash');
+    announce('⚠️ '+G.stageDef.boss.name+' ปรากฏตัว!', 'ระวังสกิล '+(G.stageDef.boss.skillName||''), '#5a1010', '#ff5544', 2, true);
+  }
+  // ทยอยปล่อยมอนสเตอร์เข้าสนามทีละ 1 (บางครั้ง 2) ตัว แทนที่จะออกมาพร้อมกันทั้งเวฟ — ดูเป็นธรรมชาติ
+  G.pendingSpawns.push(...G.spawnQueue);
+  G.spawnQueue = [];
+  G.spawnTimer = 0; // ตัวแรกของเวฟออกทันทีในติ๊กถัดไป
+}
+
+/* ประมวลผลคิวสปอนที่ทยอยออก — เรียกทุกเฟรมจาก update() */
+function processSpawning(dt){
+  if(G.pendingSpawns.length===0) return;
+  G.spawnTimer -= dt;
+  if(G.spawnTimer <= 0){
+    const batch = (G.pendingSpawns.length>1 && Math.random()<0.25) ? 2 : 1; // ส่วนใหญ่ออกทีละ 1 ตัว บางครั้งออก 2
+    for(let i=0;i<batch && G.pendingSpawns.length>0;i++){
+      const def = G.pendingSpawns.shift();
+      G.enemyUnits.push(makeEnemy(def.archetype, G.stageDef.n, G.stageDef.boss));
+    }
+    G.spawnTimer = rnd(0.7, 1.5);
+  }
+}
+
+function updateWaveLabel(){
+  const w = Math.min(G.waveIdx+1, G.stageDef.waves.length);
+  document.getElementById('waveLabel').textContent = G.allWavesDone
+    ? 'บุกกรงศัตรู!' : `Wave ${w}/${G.stageDef.waves.length}`;
+}
+
+function buildActionButtons(){
+  const row = document.getElementById('actionRow');
+  row.innerHTML = '';
+  HERO_ORDER.forEach(code=>{
+    const h = HEROES[code];
+    const col = document.createElement('div');
+    col.className = 'heroCol';
+
+    const deployBtn = document.createElement('button');
+    deployBtn.className = 'deployBtn';
+    deployBtn.style.background = `linear-gradient(180deg, ${h.color}, ${h.color}cc)`;
+    deployBtn.innerHTML = `<b>${CLASS_ICON[h.cls]||''} ${h.name}</b><span>${h.cost}💎</span>`;
+    deployBtn.onclick = () => deployHero(code);
+    deployBtn.id = 'deploy_'+code;
+
+    const skillBtn = document.createElement('button');
+    skillBtn.className = 'skillBtn auto';
+    skillBtn.id = 'skill_'+code;
+    /* สีตามตัวละคร แต่ drop โทนลง (โปร่งกว่า/ซีดกว่า) ให้ปุ่ม deploy เด่นกว่า */
+    skillBtn.style.background = `linear-gradient(180deg, ${h.color}a6, ${h.color}7d)`;
+    skillBtn.style.cursor = 'default';
+    skillBtn.innerHTML = `<div class="cdBar" style="width:0%"></div><b>${CLASS_ICON[h.cls]||''} ⟳ SKILL</b><span>${h.name}</span>`;
+    skillBtn.disabled = true; // สกิลออกอัตโนมัติเมื่อคูลดาวน์หมด ไม่ต้องกด
+
+    col.appendChild(deployBtn);
+    col.appendChild(skillBtn);
+    row.appendChild(col);
+  });
+}
+
+function deployHero(code){
+  if(!G || G.ended) return;
+  const h = HEROES[code];
+  if(G.mineral < h.cost) return;
+  G.mineral -= h.cost;
+  sfx.deploy();
+  const x = 6+Math.random()*3, y = 48+Math.random()*32;
+  G.playerUnits.push({
+    id:Math.random(), side:'player', code, name:h.name, color:h.color,
+    hp:h.hp, maxhp:h.hp, atk:h.atk, def:h.def, res:h.res, el:h.el, atkSpeed:h.atkSpeed,
+    x, y, atkCd:0, alive:true,
+    skillCd: 1.2, // คูลดาวน์สกิลส่วนตัวของตัวนี้เอง — หน่วงก่อนสกิลออโต้แรก
+    dmgReduction:0, dmgReductionUntil:0, nextHitBonus:0
+  });
+  spawnGlow(x, y, h.color);
+}
+
+function frontMostAlive(code){
+  const list = G.playerUnits.filter(u=>u.code===code && u.alive);
+  if(!list.length) return null;
+  return list.reduce((a,b)=> a.x>b.x ? a : b); // most advanced (closest to enemy)
+}
+
+/* คูลดาวน์สกิลเป็นของ "แต่ละตัว" — นกชนิดเดียวกันหลายตัวต่างคนต่างมีนาฬิกาของตัวเอง
+   แบนเนอร์ประกาศมี throttle ต่อชนิด (2 วิ) กันสแปมเมื่อนกชนิดเดียวกันหลายตัวปล่อยไล่กัน */
+function castSkill(unit){
+  if(!G || G.ended || !unit.alive) return;
+  const code = unit.code;
+  const h = HEROES[code];
+  unit.skillCd = h.skillCd;
+
+  const now = performance.now();
+  G.lastSkillAnnounce = G.lastSkillAnnounce || {};
+  const canAnnounce = !(G.lastSkillAnnounce[code]) || (now - G.lastSkillAnnounce[code] > 2000);
+  const say = (main, sub, stroke, glow)=>{ if(canAnnounce){ announce(main, sub, stroke, glow); G.lastSkillAnnounce[code] = now; } };
+
+  if(code==='JOJO'){
+    unit.dmgReduction = 0.20; unit.dmgReductionUntil = now+4000;
+    popDamage(unit.x, unit.y, 'DEF+', '#3a6ea5');
+    /* โดมโล่ครอบตัว 4 วิ + เศษหินดินกระเด็น */
+    attachAura(unit.id, 'shieldDome', 4000);
+    spawnParticles(unit.x, unit.y, {count:14, colors:['#8a5a2b','#a97b46','#7fb2e8'], size:[5,10], dist:[35,80], gravity:26, dur:[550,900]});
+    spawnGlow(unit.x, unit.y, '#3a6ea5');
+    sfx.skillJojo();
+    say(h.skillName+'!', h.name+' — ลดดาเมจ 20%', '#1d4d80', '#7fb2e8');
+  } else if(code==='KHAO'){
+    unit.nextHitBonus = 0.40;
+    popDamage(unit.x, unit.y, 'ATK+', '#c0392b');
+    /* ไฟลุกรอบตัวจนกว่าจะปล่อยหมัด + ลูกไฟพวยพุ่งขึ้น */
+    attachAura(unit.id, 'fireAura', 3000);
+    spawnParticles(unit.x, unit.y, {count:16, colors:['#ff7828','#ffb340','#ff3c14','#ffe08a'], size:[4,9], dist:[40,90], up:true, dur:[450,800]});
+    spawnGlow(unit.x, unit.y, '#c0392b');
+    sfx.skillKhao();
+    say(h.skillName+'!', h.name+' — ตีแรงขึ้น 40%', '#8f1d10', '#ff8a6b');
+  } else if(code==='OCEAN'){
+    const targets = G.enemyUnits.filter(e=>e.alive).sort((a,b)=>a.x-b.x).slice(0,2);
+    /* คลื่นน้ำซ้อน 2 วง + ละอองน้ำสาด */
+    spawnWaveRing(unit.x, unit.y, 90, 0);
+    spawnWaveRing(unit.x, unit.y, 140, 130);
+    spawnParticles(unit.x, unit.y, {count:14, colors:['#3a8fd6','#6bc4f0','#bfe8ff'], size:[3,7], dist:[35,75], up:true, gravity:18, dur:[400,750]});
+    spawnGlow(unit.x, unit.y, '#1f9d8f');
+    sfx.skillOcean();
+    say(h.skillName+'!', h.name+' — ยิงรัว 2 เป้าหมาย', '#0e6e63', '#6be0d2');
+    targets.forEach(t=> dealDamage(unit, t));
+  } else if(code==='MOMO'){
+    const ally = G.playerUnits.filter(u=>u.alive).sort((a,b)=>b.x-a.x)[0]; // frontmost overall
+    spawnGlow(unit.x, unit.y, '#8e44ad');
+    /* หัวใจ+ประกายลอยจากตัวโมโม่ */
+    spawnParticles(unit.x, unit.y, {count:8, colors:['#ff8bb8','#ffd1e6','#e0679e'], char:['♥','✿','✦'], charSize:[13,20], dist:[30,60], up:true, dur:[700,1100]});
+    sfx.skillMomo();
+    say(h.skillName+'!', h.name+' — ฟื้นฟูพลังชีวิต', '#6a2d86', '#dba7f0');
+    if(ally){
+      const heal = Math.round(ally.maxhp*0.15); ally.hp = Math.min(ally.maxhp, ally.hp+heal);
+      popDamage(ally.x, ally.y, '+'+heal, '#4CD964');
+      /* เสาแสงเขียวพุ่งขึ้นที่ตัวเพื่อนที่ถูกฮีล + ประกายเขียว */
+      spawnHealColumn(ally.x, ally.y);
+      spawnParticles(ally.x, ally.y, {count:10, colors:['#7ee787','#b8f5bd','#4CD964'], char:['+','✦'], charSize:[11,17], dist:[25,55], up:true, dur:[600,1000]});
+    }
+  }
+}
+
+function isRangedUnit(u){
+  if(u.side==='player') return u.code==='OCEAN';
+  return u.name==='Striker';
+}
+
+/* Melee: damage resolves instantly. Ranged: the shot is calculated at launch (based on the
+   shooter's stats at that moment) but only actually lands — hp loss, sound, flash, kill credit —
+   when the projectile visually arrives, so a dodge-by-death mid-flight is possible and the
+   attack always looks like it truly caused the hit. */
+function dealDamage(attacker, defender){
+  const mult = elementMult(attacker.el, defender.el);
+  let dmg = attacker.atk * mult;
+  if(attacker.nextHitBonus){ dmg *= (1+attacker.nextHitBonus); attacker.nextHitBonus = 0; }
+  dmg = dmg - (defender.def||0);
+  if(defender.dmgReduction && performance.now() < defender.dmgReductionUntil) dmg *= (1-defender.dmgReduction);
+  dmg = Math.max(1, Math.round(dmg));
+
+  const ranged = isRangedUnit(attacker);
+  const side = attacker.side;
+  const color = ELEMENT_COLOR[attacker.el] || '#ffffff';
+  const isCrit = mult>1, isWeak = mult<1;
+  const dmgText = dmg + (isCrit?'!':'');
+  const dmgColor = isCrit ? '#ffd23f' : (isWeak ? '#c7c7c7' : '#ffffff');
+  const fromX = attacker.x, fromY = attacker.y;
+
+  if(ranged) recoilUnit(attacker.id, side==='player' ? 'r' : 'l');
+  else lungeUnit(attacker.id, side==='player' ? 'r' : 'l');
+
+  function resolveImpact(){
+    if(!defender.alive) return; // target already went down before the shot/blow landed
+    defender.hp -= dmg;
+    if(side==='player'){
+      G.stats.dealt += dmg;
+      if(attacker.code) G.stats.byHero[attacker.code] = (G.stats.byHero[attacker.code]||0) + dmg;
+    }
+    popDamage(defender.x, defender.y, dmgText, dmgColor);
+    spawnBurst(defender.x, defender.y, color);
+    flashUnit(defender.id);
+    if(isCrit){ sfx.crit(attacker.el, side); if(side==='player') triggerShake(); }
+    else sfx.hit(attacker.el, side, ranged);
+    if(defender.hp<=0){
+      defender.alive=false;
+      if(side==='player'){
+        G.stats.kills++;
+        // รางวัลกำจัดมอนสเตอร์: +แร่
+        G.mineral = Math.min(G.mineralCap, G.mineral + KILL_MINERAL_REWARD);
+        popDamage(defender.x, defender.y - 4, '+'+KILL_MINERAL_REWARD+'💎', '#ffd23f');
+      }
+    }
+  }
+
+  if(ranged){
+    sfx.shootLaunch(attacker.el, side);
+    spawnProjectile(fromX, fromY, ()=>defender, color, resolveImpact);
+  } else {
+    resolveImpact();
+  }
+}
+
+/* ---- direct DOM-driven unit feedback (acts on the persistent element immediately,
+   instead of being replayed by the render loop — avoids the old flicker/vanish bug) ---- */
+function lungeUnit(id, dir){
+  const u = unitEls.get(id); if(!u) return;
+  u.el.classList.remove('lunge-l','lunge-r'); void u.el.offsetWidth;
+  u.el.classList.add('lunge-'+dir);
+}
+function recoilUnit(id, dir){
+  const u = unitEls.get(id); if(!u) return;
+  u.el.classList.remove('recoil-l','recoil-r'); void u.el.offsetWidth;
+  u.el.classList.add('recoil-'+dir);
+}
+function flashUnit(id){
+  const u = unitEls.get(id); if(!u) return;
+  u.el.classList.remove('hit'); void u.el.offsetWidth;
+  u.el.classList.add('hit');
+}
+
+let dmgPops = [];
+function popDamage(x,y,text,color){ dmgPops.push({x,y,text,color,born:performance.now()}); }
+
+let effects = []; // burst + skill glow visuals
+function spawnBurst(x,y,color){ effects.push({x,y,color,kind:'burst',born:performance.now(),life:320}); }
+function spawnGlow(x,y,color){ effects.push({x,y,color,kind:'glow',born:performance.now(),life:550}); }
+
+/* ---- flying projectiles for ranged attacks: travel from shooter to target, then resolve ---- */
+let projectiles = [];
+function spawnProjectile(x1,y1,getTarget,color,onArrive){
+  const t = getTarget();
+  const dist = Math.hypot((t.x-x1), (t.y-y1));
+  const dur = Math.min(260, Math.max(110, dist*3.4));
+  projectiles.push({x1,y1,getTarget,color,born:performance.now(),dur,onArrive,el:null});
+}
+
+let shakeTimer = null;
+function triggerShake(){
+  const arena = document.getElementById('arena');
+  if(!arena) return;
+  arena.classList.remove('shakeSoft');
+  arena.classList.add('shake');
+  if(shakeTimer) clearTimeout(shakeTimer);
+  shakeTimer = setTimeout(()=>arena.classList.remove('shake'), 250);
+}
+/* สั่นเบาๆ สำหรับเหตุการณ์ที่เกิดถี่ (เช่นบอสทุบป้อมทุกวินาที) กันไม่ให้จอสั่น/วูบถี่จนแสบตา */
+function triggerShakeSoft(){
+  const arena = document.getElementById('arena');
+  if(!arena || arena.classList.contains('shake')) return;
+  arena.classList.remove('shakeSoft'); void arena.offsetWidth;
+  arena.classList.add('shakeSoft');
+  if(shakeTimer) clearTimeout(shakeTimer);
+  shakeTimer = setTimeout(()=>arena.classList.remove('shakeSoft'), 200);
+}
+
+/* =========================================================
+   SKILL VFX — particle & aura systems
+========================================================= */
+/* พาร์ติเคิลกระจาย: จุดสี หรือ ตัวอักษร/อีโมจิ ใช้ Web Animations API เคลื่อนแบบสุ่ม */
+function spawnParticles(xPct, yPct, opts){
+  const arena = document.getElementById('arena');
+  const o = Object.assign({count:10, colors:['#fff'], size:[4,8], dist:[30,70],
+    up:false, gravity:0, dur:[500,850], char:null, charSize:[12,18]}, opts);
+  for(let i=0;i<o.count;i++){
+    const el = document.createElement('div');
+    const isTxt = !!o.char;
+    el.className = 'particle ' + (isTxt?'txt':'dot');
+    const c = o.colors[Math.floor(Math.random()*o.colors.length)];
+    if(isTxt){
+      el.textContent = Array.isArray(o.char)? pick(o.char) : o.char;
+      el.style.fontSize = rnd(o.charSize[0],o.charSize[1])+'px';
+      el.style.color = c;
+    } else {
+      const s = rnd(o.size[0],o.size[1]);
+      el.style.width = s+'px'; el.style.height = s+'px';
+      el.style.background = c;
+      el.style.boxShadow = `0 0 ${s}px ${c}`;
+    }
+    el.style.left = xPct+'%'; el.style.top = yPct+'%';
+    arena.appendChild(el);
+    const ang = o.up ? (-Math.PI/2 + rnd(-0.7,0.7)) : rnd(0, Math.PI*2);
+    const dist = rnd(o.dist[0],o.dist[1]);
+    const dx = Math.cos(ang)*dist, dy = Math.sin(ang)*dist + o.gravity;
+    const dur = rnd(o.dur[0],o.dur[1]);
+    el.animate([
+      {transform:'translate(0,0) scale(1) rotate(0deg)', opacity:1},
+      {transform:`translate(${dx}px,${dy}px) scale(.35) rotate(${rnd(-160,160)}deg)`, opacity:0}
+    ], {duration:dur, easing:'cubic-bezier(.2,.7,.4,1)'}).onfinish = ()=>el.remove();
+  }
+}
+/* ออร่าติดตามตัวละคร (โดมโล่/ไฟลุก) — แปะเข้ากับ element ของยูนิตโดยตรง จึงเคลื่อนตามตัว */
+function attachAura(unitId, className, durMs){
+  const rec = unitEls.get(unitId); if(!rec) return;
+  const old = rec.el.querySelector('.'+className); if(old) old.remove();
+  const a = document.createElement('div');
+  a.className = className;
+  rec.el.appendChild(a);
+  setTimeout(()=>a.remove(), durMs);
+}
+function spawnHealColumn(xPct, yPct){
+  const arena = document.getElementById('arena');
+  const el = document.createElement('div');
+  el.className = 'healColumn';
+  el.style.left = xPct+'%'; el.style.top = yPct+'%';
+  arena.appendChild(el);
+  setTimeout(()=>el.remove(), 950);
+}
+function spawnWaveRing(xPct, yPct, sizePx, delayMs){
+  setTimeout(()=>{
+    const arena = document.getElementById('arena'); if(!arena) return;
+    const el = document.createElement('div');
+    el.className = 'waveRing';
+    el.style.left = xPct+'%'; el.style.top = yPct+'%';
+    el.style.width = sizePx+'px'; el.style.height = sizePx+'px';
+    arena.appendChild(el);
+    setTimeout(()=>el.remove(), 750);
+  }, delayMs||0);
+}
+function spawnClawSlash(xPct, yPct){
+  const arena = document.getElementById('arena');
+  [-40, -10, 25].forEach((ang, i)=>{
+    setTimeout(()=>{
+      if(!arena.isConnected) return;
+      const el = document.createElement('div');
+      el.className = 'clawSlash';
+      el.style.left = xPct+'%'; el.style.top = (yPct + i*2 - 2)+'%';
+      el.style.setProperty('--slashAng', ang+'deg');
+      arena.appendChild(el);
+      setTimeout(()=>el.remove(), 420);
+    }, i*70);
+  });
+}
+
+/* =========================================================
+   AMBIENT BIRDS — นกตัวเล็กสีจางบินผ่านท้องฟ้า (ด่าน 6 ขึ้นไป)
+   สุ่มทิศ ซ้าย→ขวา หรือ ขวา→ซ้าย, สุ่มความสูง/ขนาด/ความเร็ว/เวลาออก
+========================================================= */
+function ambientBirdSVG(color){
+  return `<svg viewBox="0 0 24 12" width="100%" height="100%">
+    <path d="M2 7 Q6 2 12 6 Q18 2 22 7 Q17 5.5 12 8 Q7 5.5 2 7 Z" fill="${color}"/>
+  </svg>`;
+}
+function spawnAmbientBird(){
+  const arena = document.getElementById('arena');
+  if(!arena || !G || G.ended) return;
+  const goRight = Math.random() < 0.5;
+  const size = rnd(22, 50);
+  const y = rnd(4, 24); // เฉพาะโซนท้องฟ้าด้านบน
+  const color = pick(['#8fa892','#9db3a0','#a8b8aa','#93a6b0']);
+  const el = document.createElement('div');
+  el.style.cssText = `position:absolute;top:${y}%;width:${size}px;height:${size/2}px;
+    pointer-events:none;z-index:0;opacity:${rnd(.25,.42)};
+    left:${goRight? '-4%' : '104%'};
+    transform:scaleX(${goRight?1:-1});`;
+  el.innerHTML = ambientBirdSVG(color);
+  arena.appendChild(el);
+  const travel = arena.clientWidth * 1.12;
+  const dur = rnd(9000, 15000);
+  const bob = rnd(8, 20);
+  el.animate([
+    {transform:`translate(0,0) scaleX(${goRight?1:-1})`},
+    {transform:`translate(${goRight?travel:-travel}px, ${Math.random()<0.5?-bob:bob}px) scaleX(${goRight?1:-1})`}
+  ], {duration:dur, easing:'linear'}).onfinish = ()=>el.remove();
+}
+function processAmbientBirds(dt){
+  G.ambientTimer = (G.ambientTimer ?? rnd(1.5, 4)) - dt;
+  if(G.ambientTimer <= 0){
+    spawnAmbientBird();
+    if(Math.random() < 0.3) setTimeout(spawnAmbientBird, rnd(300, 900)); // บางครั้งบินมาเป็นคู่
+    G.ambientTimer = rnd(3, 10); // สุ่มเวลาตัวถัดไป
+  }
+}
+
+/* =========================================================
+   CENTER-SCREEN ANNOUNCEMENT (สกิล / ชื่อด่าน / บอส)
+========================================================= */
+let announceTimer = null;
+function announce(main, sub, stroke, glow, dur, big){
+  const el = document.getElementById('announce');
+  el.querySelector('.annMain').textContent = main;
+  el.querySelector('.annSub').textContent = sub || '';
+  el.style.setProperty('--annStroke', stroke || '#8e44ad');
+  el.style.setProperty('--annGlow', glow || '#b18aff');
+  el.style.setProperty('--annDur', (dur||1.4)+'s');
+  el.classList.toggle('big', !!big);
+  el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+  if(announceTimer) clearTimeout(announceTimer);
+  announceTimer = setTimeout(()=>el.classList.remove('show'), (dur||1.4)*1000);
+}
+
+/* =========================================================
+   RANDOM SCENERY — สุ่มต้นไม้ หิน หญ้า ท่อนไม้ ฟาง ใหม่ทุกด่าน
+========================================================= */
+function rnd(a,b){ return a + Math.random()*(b-a); }
+function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+
+function sceneryTreeSVG(){
+  const trunk = pick(['#8a5a2b','#7a4a22','#6e4520']);
+  const leaf = pick(['#5e9c3e','#6fae4a','#4f8c35','#7bb85a']);
+  const leaf2 = pick(['#79b556','#8ac467','#67a446']);
+  return `<svg viewBox="0 0 60 80" width="100%" height="100%">
+    <rect x="26" y="42" width="8" height="34" rx="3" fill="${trunk}"/>
+    <ellipse cx="30" cy="30" rx="24" ry="20" fill="${leaf}"/>
+    <ellipse cx="${rnd(16,22)}" cy="${rnd(20,26)}" rx="13" ry="11" fill="${leaf2}"/>
+    <ellipse cx="${rnd(38,44)}" cy="${rnd(22,30)}" rx="12" ry="10" fill="${leaf2}" opacity=".85"/>
+    <ellipse cx="30" cy="14" rx="12" ry="9" fill="${leaf2}"/>
+  </svg>`;
+}
+function sceneryRockSVG(){
+  const c = pick(['#9aa3a8','#8b949a','#a8b0b5']);
+  return `<svg viewBox="0 0 40 26" width="100%" height="100%">
+    <ellipse cx="20" cy="18" rx="17" ry="8" fill="${c}"/>
+    <ellipse cx="14" cy="13" rx="10" ry="8" fill="${c}"/>
+    <ellipse cx="27" cy="14" rx="8" ry="6" fill="${c}" opacity=".9"/>
+    <ellipse cx="14" cy="11" rx="4" ry="2.5" fill="#fff" opacity=".28"/>
+  </svg>`;
+}
+function sceneryGrassSVG(){
+  const c = pick(['#4f8c35','#5e9c3e','#6fae4a','#7bb85a']);
+  return `<svg viewBox="0 0 24 20" width="100%" height="100%">
+    <path d="M4 20 Q3 8 1 4 Q7 8 8 20 Z" fill="${c}"/>
+    <path d="M11 20 Q11 5 12 1 Q14 6 14 20 Z" fill="${c}"/>
+    <path d="M18 20 Q19 9 23 5 Q19 10 20 20 Z" fill="${c}" opacity=".85"/>
+  </svg>`;
+}
+function sceneryLogSVG(){
+  return `<svg viewBox="0 0 50 18" width="100%" height="100%">
+    <rect x="4" y="4" width="44" height="11" rx="5.5" fill="#8a5a2b"/>
+    <ellipse cx="6.5" cy="9.5" rx="4" ry="5.5" fill="#c49a6c"/>
+    <ellipse cx="6.5" cy="9.5" rx="2" ry="3" fill="#a67c4e"/>
+    <line x1="16" y1="6" x2="30" y2="6" stroke="#6e4520" stroke-width="1.2" opacity=".6"/>
+    <line x1="20" y1="12" x2="40" y2="12" stroke="#6e4520" stroke-width="1.2" opacity=".6"/>
+  </svg>`;
+}
+function scenerystrawSVG(){
+  const c = pick(['#d9b24a','#e0c060','#c9a43e']);
+  let lines = '';
+  for(let i=0;i<6;i++){
+    const x = rnd(2,26), y = rnd(4,14), a = rnd(-40,40);
+    lines += `<line x1="${x}" y1="${y}" x2="${x+rnd(6,11)}" y2="${y}" stroke="${c}" stroke-width="1.6" stroke-linecap="round" transform="rotate(${a} ${x} ${y})"/>`;
+  }
+  return `<svg viewBox="0 0 32 18" width="100%" height="100%">${lines}</svg>`;
+}
+function generateScenery(){
+  const box = document.getElementById('scenery');
+  box.innerHTML = '';
+  function add(svg, x, yPct, w, h, opacity, blur){
+    const d = document.createElement('div');
+    d.style.cssText = `position:absolute;left:${x}%;top:${yPct}%;width:${w}px;height:${h}px;pointer-events:none;opacity:${opacity};${blur?'filter:blur(.4px);':''}`;
+    d.innerHTML = svg;
+    box.appendChild(d);
+  }
+  // ต้นไม้ริมเส้นขอบฟ้า (ไกล = เล็ก+จาง)
+  const nTrees = Math.floor(rnd(4,8));
+  for(let i=0;i<nTrees;i++){
+    const far = Math.random()<0.5;
+    const s = far ? rnd(34,50) : rnd(55,85);
+    add(sceneryTreeSVG(), rnd(8,88), far ? rnd(36,42) : rnd(30,40), s, s*1.33, far?0.55:0.8, far);
+  }
+  // ก้อนหิน
+  const nRocks = Math.floor(rnd(2,5));
+  for(let i=0;i<nRocks;i++){
+    const s = rnd(24,44);
+    add(sceneryRockSVG(), rnd(10,86), rnd(60,86), s, s*0.65, rnd(.7,.95));
+  }
+  // กอหญ้า
+  const nGrass = Math.floor(rnd(9,16));
+  for(let i=0;i<nGrass;i++){
+    const s = rnd(14,26);
+    add(sceneryGrassSVG(), rnd(3,94), rnd(58,90), s, s*0.85, rnd(.6,.95));
+  }
+  // ท่อนไม้ / เศษไม้
+  const nLogs = Math.floor(rnd(1,4));
+  for(let i=0;i<nLogs;i++){
+    const s = rnd(30,52);
+    add(sceneryLogSVG(), rnd(12,82), rnd(64,86), s, s*0.36, rnd(.75,.95));
+  }
+  // เศษฟาง
+  const nStraw = Math.floor(rnd(3,7));
+  for(let i=0;i<nStraw;i++){
+    const s = rnd(22,36);
+    add(scenerystrawSVG(), rnd(5,90), rnd(60,90), s, s*0.55, rnd(.55,.85));
+  }
+}
+
+/* =========================================================
+   MAIN LOOP
+========================================================= */
+function loop(ts){
+  if(!G || G.ended) return;
+  if(!lastTs) lastTs = ts;
+  const dt = Math.min(0.05, (ts-lastTs)/1000);
+  lastTs = ts;
+
+  update(dt);
+  render();
+
+  if(!G.ended) rafId = requestAnimationFrame(loop);
+}
+
+function update(dt){
+  // resolve any ranged shots that have finished travelling
+  const now0 = performance.now();
+  projectiles = projectiles.filter(p => {
+    if(now0 - p.born >= p.dur){ p.onArrive(); return false; }
+    return true;
+  });
+
+  // mineral regen
+  G.mineral = Math.min(G.mineralCap, G.mineral + 10*dt);
+
+  // ⏱ เวลาจำกัดต่อด่าน 120 วิ — หมดเวลา = แพ้
+  G.timeLeft -= dt;
+  if(G.timeLeft <= 0){
+    G.timeLeft = 0;
+    announce('⏱ หมดเวลา!', '', '#5a1010', '#ff5544', 1.6, true);
+    finishBattle(false);
+    return;
+  }
+
+  // ระบบสกิลอัตโนมัติรายตัว: นกแต่ละตัวมีคูลดาวน์ของตัวเอง ปล่อยเองเมื่อครบเวลา
+  G.playerUnits.forEach(u=>{
+    if(!u.alive) return;
+    u.skillCd -= dt;
+    if(u.skillCd <= 0) castSkill(u);
+  });
+
+  // ทยอยปล่อยมอนสเตอร์เข้าสนาม
+  processSpawning(dt);
+  // นกจางๆ บินผ่านท้องฟ้า (ด่าน 6+)
+  processAmbientBirds(dt);
+
+  // clean dead units from previous tick
+  G.playerUnits = G.playerUnits.filter(u=>u.alive);
+  G.enemyUnits = G.enemyUnits.filter(u=>u.alive);
+
+  // player units behavior
+  G.playerUnits.forEach(u=>{
+    u.atkCd = Math.max(0, u.atkCd - dt);
+    const target = nearestEnemyAhead(u);
+    const engageR = isRangedUnit(u) ? RANGED_ENGAGE_RANGE : ENGAGE_RANGE;
+    if(target){
+      const dist = Math.abs(target.x - u.x);
+      if(dist <= engageR){
+        if(u.atkCd<=0){ dealDamage(u, target); u.atkCd = u.atkSpeed; }
+      } else {
+        u.x = Math.min(94, u.x + MOVE_SPEED_PLAYER*dt);
+      }
+    } else if(G.allWavesDone){
+      if(u.x < 90) u.x = Math.min(90, u.x + MOVE_SPEED_PLAYER*dt);
+      else if(u.atkCd<=0){ // siege enemy fortress
+        const mult = 1.0;
+        const dmg = Math.max(1, Math.round(u.atk*mult));
+        G.eFortHP -= dmg; G.stats.dealt += dmg;
+        if(u.code) G.stats.byHero[u.code] = (G.stats.byHero[u.code]||0) + dmg;
+        popDamage(u.x,u.y,dmg,'#ffffff');
+        sfx.fortHitEnemy();
+        u.atkCd = u.atkSpeed;
+      }
+    } else {
+      u.x = Math.min(88, u.x + MOVE_SPEED_PLAYER*dt);
+    }
+  });
+
+  // enemy units behavior
+  G.enemyUnits.forEach(e=>{
+    e.atkCd = Math.max(0, e.atkCd - dt);
+    const target = nearestPlayerAhead(e);
+    const engageR = isRangedUnit(e) ? RANGED_ENGAGE_RANGE : ENGAGE_RANGE;
+    if(target){
+      const dist = Math.abs(e.x - target.x);
+      if(dist <= engageR){
+        if(e.atkCd<=0){ dealDamage(e, target); e.atkCd = e.atkSpeed; }
+      } else {
+        e.x = Math.max(6, e.x - MOVE_SPEED_ENEMY*dt);
+      }
+    } else {
+      e.x = Math.max(4, e.x - MOVE_SPEED_ENEMY*dt);
+      if(e.x<=5){
+        // ทุกตัว (รวมบอส) ปักหลักโจมตีป้อมต่อเนื่อง จนกว่าจะถูกกำจัดหรือป้อมแตก
+        // — สร้างแรงกดดันจริง ผู้เล่นต้องส่งนกไปเคลียร์หน้าป้อม
+        if(e.atkCd<=0){
+          G.pFortHP -= e.atk; e.atkCd = e.atkSpeed;
+          popDamage(e.x + Math.random()*2, e.y, '-'+e.atk, '#ff5566');
+          if(e.isBoss){ sfx.bossAttack(); triggerShakeSoft(); }
+          else sfx.fortHitPlayer();
+          lungeUnit(e.id, 'l');
+        }
+      }
+    }
+  });
+
+  G.playerUnits = G.playerUnits.filter(u=>u.alive);
+  G.enemyUnits = G.enemyUnits.filter(u=>u.alive);
+
+  // wave progression:
+  // - เวฟตายหมด (ทั้งที่ทยอยออกแล้วและที่ยังไม่ออก) → เวฟถัดไปออกทันที (0.0 วิ)
+  // - เวฟค้างเกินเวลาที่กำหนด (10 วิ ด่าน 1-2 / 15 วิ ด่านอื่น) → เวฟถัดไปเริ่มทยอยออกซ้อนเลยไม่ต้องรอ
+  if(!G.allWavesSpawned){
+    G.waveElapsed += dt;
+    const waveFullyCleared = G.pendingSpawns.length===0 && G.enemyUnits.length===0;
+    const threshold = waveForceThreshold(G.stageDef.n);
+    if(waveFullyCleared || G.waveElapsed >= threshold){
+      G.waveIdx++;
+      if(G.waveIdx >= G.stageDef.waves.length){
+        G.allWavesSpawned = true;
+      } else {
+        G.spawnQueue = parseWaveGroup(G.stageDef.waves[G.waveIdx]);
+        materializeWave();
+        G.waveElapsed = 0;
+        updateWaveLabel();
+        sfx.waveClear();
+      }
+    }
+  }
+  if(G.allWavesSpawned && !G.allWavesDone && G.pendingSpawns.length===0 && G.enemyUnits.length===0){
+    G.allWavesDone = true;
+    updateWaveLabel();
+    sfx.waveClear();
+    announce('บุกกรงศัตรู!', 'กวาดล้างให้สิ้นซาก', '#7a1a1a', '#ff9a6b');
+  }
+
+  // boss skill: ปล่อยเป็นระยะ โจมตีแรงใส่นก 2 ตัวหน้าสุด พร้อมประกาศกลางจอ
+  G.enemyUnits.forEach(e=>{
+    if(!e.isBoss || !G.stageDef.boss.skillName) return;
+    e.skillTimer = (e.skillTimer||0) + dt;
+    if(e.skillTimer >= G.stageDef.boss.skillCd && G.playerUnits.length){
+      e.skillTimer = 0;
+      announce(G.stageDef.boss.skillName+'!', e.name+' ใช้สกิล!', '#5a1010', '#ff5544', 1.6, true);
+      sfx.bossWarn();
+      triggerShake();
+      spawnGlow(e.x, e.y, '#ff3b30');
+      const targets = G.playerUnits.filter(u=>u.alive).sort((a,b)=>b.x-a.x).slice(0,2);
+      targets.forEach(t=>{
+        const dmg = Math.max(1, Math.round(e.atk*1.5) - (t.def||0));
+        t.hp -= dmg;
+        popDamage(t.x, t.y, dmg+'!', '#ff3b30');
+        /* รอยกรงเล็บ 3 เส้นฟาดใส่เป้า + เศษเงากระจาย */
+        spawnClawSlash(t.x, t.y);
+        spawnParticles(t.x, t.y, {count:8, colors:['#ff3b30','#7a1a1a','#2b2f33'], size:[4,8], dist:[25,60], gravity:20, dur:[350,650]});
+        spawnBurst(t.x, t.y, '#ff3b30');
+        flashUnit(t.id);
+        if(t.hp<=0) t.alive=false;
+      });
+    }
+  });
+
+  if(G.pFortHP<=0){ finishBattle(false); }
+  else if(G.eFortHP<=0){ finishBattle(true); }
+}
+
+function nearestEnemyAhead(u){
+  let best=null, bestDist=Infinity;
+  G.enemyUnits.forEach(e=>{
+    if(!e.alive) return;
+    const d = Math.abs(e.x - u.x);
+    if(d < bestDist){ bestDist = d; best = e; }
+  });
+  return best;
+}
+function nearestPlayerAhead(e){
+  let best=null, bestDist=Infinity;
+  G.playerUnits.forEach(p=>{
+    if(!p.alive) return;
+    const d = Math.abs(p.x - e.x);
+    if(d < bestDist){ bestDist = d; best = p; }
+  });
+  return best;
+}
+
+/* =========================================================
+   RENDER
+========================================================= */
+function render(){
+  const mineralFillEl = document.getElementById('mineralFill');
+  mineralFillEl.style.width = (G.mineral/G.mineralCap*100)+'%';
+  mineralFillEl.classList.toggle('full', G.mineral >= G.mineralCap - 0.5);
+  document.getElementById('mineralText').textContent = Math.floor(G.mineral)+'/'+G.mineralCap;
+  document.getElementById('pFortFill').style.width = Math.max(0,G.pFortHP/PLAYER_FORT_HP*100)+'%';
+  document.getElementById('eFortFill').style.width = Math.max(0,G.eFortHP/ENEMY_FORT_HP*100)+'%';
+
+  // low-HP feedback: fortress pulse below 35%, red vignette below 20%
+  const pRatio = G.pFortHP/PLAYER_FORT_HP;
+  document.getElementById('pFort').classList.toggle('danger', pRatio < 0.35 && pRatio > 0);
+  document.getElementById('vignetteWarn').classList.toggle('show', pRatio < 0.20 && pRatio > 0);
+
+  // ⏱ นาฬิกานับถอยหลัง
+  const timerEl = document.getElementById('stageTimer');
+  const tl = Math.max(0, Math.ceil(G.timeLeft));
+  const mm = Math.floor(tl/60), ss = String(tl%60).padStart(2,'0');
+  timerEl.textContent = `⏱ ${mm}:${ss}`;
+  timerEl.classList.toggle('low', G.timeLeft <= 20);
+
+  HERO_ORDER.forEach(code=>{
+    const h = HEROES[code];
+    const deployBtn = document.getElementById('deploy_'+code);
+    if(deployBtn) deployBtn.disabled = G.mineral < h.cost;
+
+    const skillBtn = document.getElementById('skill_'+code);
+    if(skillBtn){
+      /* คูลดาวน์รายตัว: ปุ่มแสดงตัวที่ใกล้ปล่อยสกิลที่สุด + จำนวนตัวในสนาม */
+      const units = G.playerUnits.filter(u=>u.code===code && u.alive);
+      const cd = units.length ? Math.max(0, Math.min(...units.map(u=>u.skillCd))) : 0;
+      skillBtn.disabled = !units.length || cd>0;
+      const label = skillBtn.querySelector('span');
+      const bold = skillBtn.querySelector('b');
+      if(label){
+        const cnt = units.length>1 ? ` ×${units.length}` : '';
+        const txt = units.length ? (cd>0 ? cd.toFixed(1)+'s'+cnt : h.skillName+cnt) : h.name;
+        if(label.textContent !== txt) label.textContent = txt;
+      }
+      if(bold){
+        const btxt = (CLASS_ICON[h.cls]||'')+' ⟳ '+(cd>0 ? 'SKILL' : h.name);
+        if(bold.textContent !== btxt) bold.textContent = btxt;
+      }
+      const cdBar = skillBtn.querySelector('.cdBar');
+      if(cdBar) cdBar.style.width = (units.length && cd>0) ? (cd/h.skillCd*100)+'%' : '0%';
+    }
+  });
+
+  const boss = G.enemyUnits.find(e=>e.isBoss);
+  const bossWrap = document.getElementById('bossBarWrap');
+  if(boss){
+    bossWrap.style.display='block';
+    document.getElementById('bossName').textContent = boss.name+`  ${Math.max(0,Math.round(boss.hp))}/${boss.maxhp}`;
+    document.getElementById('bossFill').style.width = Math.max(0,boss.hp/boss.maxhp*100)+'%';
+  } else bossWrap.style.display='none';
+
+  const arena = document.getElementById('arena');
+
+  /* ---- persistent unit elements: create once, update position/hp per frame,
+     fade out on death — no more full teardown/rebuild every frame ---- */
+  const liveIds = new Set();
+  [...G.playerUnits, ...G.enemyUnits].forEach(u=>{
+    liveIds.add(u.id);
+    let rec = unitEls.get(u.id);
+    if(!rec){
+      const sz = unitSizePx(u);
+      const el = document.createElement('div');
+      el.className = 'unit';
+      el.style.width = sz+'px'; el.style.height = sz+'px';
+      el.style.marginLeft = (-sz/2)+'px'; el.style.marginTop = (-sz*0.75)+'px'; // จุดยึด ≈ กลางเท้า
+      el.innerHTML = `<div class="hpbar"><div class="hpfill" style="background:${u.side==='player'?'#4CD964':'#ff5566'}"></div></div><div class="iconWrap" style="animation-delay:${(-Math.random()*1.7).toFixed(2)}s">${getIconHtml(u)}</div><div class="shadow"></div>`;
+      arena.appendChild(el);
+      rec = {el, hpFillEl: el.querySelector('.hpfill')};
+      unitEls.set(u.id, rec);
+    }
+    rec.el.style.left = u.x+'%';
+    rec.el.style.top = u.y+'%';
+    rec.el.style.zIndex = 1 + Math.round(u.y); // ตัวที่อยู่ต่ำกว่า = อยู่หน้ากว่า (ความลึกจำลอง)
+    rec.hpFillEl.style.width = Math.max(0, u.hp/u.maxhp*100)+'%';
+  });
+  unitEls.forEach((rec, id)=>{
+    if(!liveIds.has(id)){
+      unitEls.delete(id);
+      rec.el.classList.add('dying');
+      setTimeout(()=>rec.el.remove(), 300);
+    }
+  });
+
+  const now = performance.now();
+
+  /* ---- flying projectiles: lerp shooter → live target position ---- */
+  projectiles.forEach(p=>{
+    if(!p.el){
+      p.el = document.createElement('div');
+      p.el.className = 'projectile';
+      p.el.style.background = p.color; p.el.style.color = p.color;
+      arena.appendChild(p.el);
+    }
+    const t = p.getTarget();
+    const prog = Math.min(1, (now - p.born)/p.dur);
+    const ease = prog*prog*(3-2*prog); // smoothstep
+    p.el.style.left = (p.x1 + (t.x - p.x1)*ease)+'%';
+    p.el.style.top  = (p.y1 + (t.y - p.y1)*ease - Math.sin(prog*Math.PI)*3)+'%'; // slight arc
+  });
+  arena.querySelectorAll('.projectile').forEach(el=>{
+    if(!projectiles.find(p=>p.el===el)) el.remove();
+  });
+
+  dmgPops = dmgPops.filter(p => now - p.born < 700);
+  dmgPops.forEach(p=>{
+    let el = p.el;
+    if(!el){ el = document.createElement('div'); el.className='dmgpop'; arena.appendChild(el); p.el = el;
+      el.style.left = p.x+'%'; el.style.top = p.y+'%'; el.style.color = p.color; el.textContent = p.text; }
+  });
+  arena.querySelectorAll('.dmgpop').forEach(el=>{
+    if(!dmgPops.find(p=>p.el===el)) el.remove();
+  });
+
+  effects = effects.filter(e => now - e.born < e.life);
+  effects.forEach(e=>{
+    if(!e.el){
+      e.el = document.createElement('div');
+      e.el.className = e.kind==='glow' ? 'skillGlow' : 'burst';
+      e.el.style.left = e.x+'%'; e.el.style.top = e.y+'%';
+      if(e.kind==='glow'){ e.el.style.borderColor = e.color; }
+      else { e.el.style.background = `radial-gradient(circle, ${e.color}cc 0%, ${e.color}00 70%)`; }
+      arena.appendChild(e.el);
+    }
+  });
+  arena.querySelectorAll('.burst,.skillGlow').forEach(el=>{
+    if(!effects.find(e=>e.el===el)) el.remove();
+  });
+}
+
+/* =========================================================
+   RESULT
+========================================================= */
+function finishBattle(win){
+  G.ended = true;
+  if(rafId) cancelAnimationFrame(rafId);
+  bgm.stop();
+  document.getElementById('vignetteWarn').classList.remove('show');
+  document.getElementById('pFort').classList.remove('danger');
+
+  let starsEarned = 0;
+  if(win){
+    const ratio = G.pFortHP / PLAYER_FORT_HP;
+    starsEarned = ratio >= 0.999 ? 3 : (ratio >= 0.5 ? 2 : 1);
+    const prevStars = progress.stars[G.stageDef.n] || 0;
+    progress.stars[G.stageDef.n] = Math.max(prevStars, starsEarned);
+    if(G.stageDef.n > progress.cleared) progress.cleared = G.stageDef.n;
+    saveProgress(progress);
+    sfx.win();
+  } else {
+    sfx.lose();
+    triggerShake();
+  }
+
+  const nextLocked = G.stageDef.n >= 10;
+  const card = document.getElementById('resultCard');
+  const starRowHtml = `<div class="starRow" style="font-size:24px;color:#f0b429;margin:6px 0;">${
+    Array.from({length:3}, (_,i)=>`<span>${i<starsEarned?'★':'☆'}</span>`).join('')
+  }</div>`;
+
+  /* สถิติดาเมจรายนก เรียงจากมากไปน้อย พร้อมแถบเทียบสัดส่วน */
+  const heroRows = HERO_ORDER
+    .map(code => ({code, name:HEROES[code].name, color:HEROES[code].color, cls:HEROES[code].cls, dmg:G.stats.byHero[code]||0}))
+    .sort((a,b)=> b.dmg - a.dmg);
+  const maxDmg = Math.max(1, ...heroRows.map(r=>r.dmg));
+  const heroStatsHtml = `<div style="margin:10px 0 4px;text-align:left;">
+    <div style="font-size:11px;font-weight:700;color:#557;margin-bottom:4px;">ดาเมจแยกตามนก</div>
+    ${heroRows.map(r=>`
+      <div style="display:flex;align-items:center;gap:6px;margin:3px 0;font-size:11px;">
+        <span style="width:14px;height:14px;border-radius:50%;background:${r.color};flex:0 0 auto;"></span>
+        <span style="width:56px;flex:0 0 auto;font-weight:600;">${r.name}</span>
+        <span style="flex:1;height:8px;background:#f0f0ea;border-radius:4px;overflow:hidden;">
+          <span style="display:block;height:100%;width:${(r.dmg/maxDmg*100).toFixed(0)}%;background:${r.color};border-radius:4px;"></span>
+        </span>
+        <span style="width:56px;flex:0 0 auto;text-align:right;font-weight:700;">${r.dmg.toLocaleString()}</span>
+      </div>`).join('')}
+  </div>`;
+
+  card.innerHTML = win ? `
+    <h2>🎉 ผ่านด่าน ${G.stageDef.n} แล้ว!</h2>
+    ${starRowHtml}
+    <p>ดาเมจรวมที่ทำได้: ${G.stats.dealt.toLocaleString()} · ศัตรูที่กำจัด: ${G.stats.kills}</p>
+    ${heroStatsHtml}
+    <p>${nextLocked ? '🏆 คุณผ่านทุกด่านใน World 1 แล้ว!' : `🔓 ปลดล็อกด่าน ${G.stageDef.n+1} แล้ว`}</p>
+    <div class="btnrow">
+      <button class="btnGhost" onclick="backToStageSelect()">แผนที่</button>
+      ${nextLocked ? '' : `<button class="btnPrimary" onclick="retryOrNext(true)">ด่านถัดไป</button>`}
+    </div>
+  ` : `
+    <h2>💔 พ่ายแพ้ที่ด่าน ${G.stageDef.n}</h2>
+    <p>ดาเมจรวมที่ทำได้: ${G.stats.dealt.toLocaleString()} · ศัตรูที่กำจัด: ${G.stats.kills}</p>
+    ${heroStatsHtml}
+    <p>ลองปรับจังหวะปล่อยตัวละครหรือใช้สกิลให้ทันเวลาดูอีกครั้ง</p>
+    <div class="btnrow">
+      <button class="btnGhost" onclick="backToStageSelect()">แผนที่</button>
+      <button class="btnPrimary" onclick="retryOrNext(false)">ลองอีกครั้ง</button>
+    </div>
+  `;
+  // small beat so the final hit's visual lands before the card pops
+  setTimeout(()=>document.getElementById('resultOverlay').classList.add('show'), 350);
+}
+function retryOrNext(win){
+  const next = win ? Math.min(10, G.stageDef.n+1) : G.stageDef.n;
+  startStage(next);
+}
+function backToStageSelect(){
+  if(rafId) cancelAnimationFrame(rafId);
+  bgm.stop();
+  document.getElementById('battle').classList.remove('active');
+  document.getElementById('stageSelect').classList.add('active');
+  document.getElementById('backBtn').style.display='none';
+  document.getElementById('stageBadge').style.display='none';
+  renderStageSelect();
+}
+document.getElementById('backBtn').onclick = backToStageSelect;
+
+/* =========================================================
+   INIT
+========================================================= */
+renderStageSelect();
+</script>
+</body>
+</html>
